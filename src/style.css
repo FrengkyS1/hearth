@@ -14,12 +14,23 @@
   --border-hi: rgba(170,255,199,0.22);
 
   --text:      #DFF5EA;
-  --muted:     #6B9E8A;
-  --faint:     #3A6055;
+  --muted:     #8FBEAC;   /* secondary text — meets 4.5:1 on surfaces */
+  --faint:     #5E8C7C;   /* tertiary/decorative — lifted for legibility */
 
   --accent:    var(--c2);
   --accent-lo: rgba(103,192,144,0.12);
   --accent-hi: var(--c1);
+
+  /* Ember — the hearth's glow. Reserved for identity: wordmark, the view
+     you're in, and focus. Never used for on/off status (that stays green). */
+  --ember:      #FF9E5E;
+  --ember-soft: rgba(255,158,94,0.12);
+  --ember-edge: rgba(255,158,94,0.55);
+
+  --shadow-row: 0 1px 2px rgba(0,0,0,0.18);
+  --shadow-pop: 0 16px 44px rgba(0,0,0,0.48);
+
+  --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', monospace;
 
   --sidebar-w: 210px;
   --radius-sm: 6px;
@@ -39,6 +50,19 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
   user-select: none;
 }
 
+/* Keyboard focus is always visible; mouse focus stays quiet. Ember ring ties
+   the focus state to Hearth's identity. */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 2px;
+  border-radius: 5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
 /* ── TITLEBAR ─────────────────────────────── */
 .titlebar {
   height: 38px;
@@ -51,15 +75,26 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
   flex-shrink: 0;
   gap: 10px;
 }
+/* The pilot light: a banked ember that quietly glows — Hearth's signature. */
 .titlebar-logo {
   width: 18px; height: 18px;
-  border-radius: 5px;
-  background: linear-gradient(135deg, var(--c2), var(--c3));
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, #FFD7A8 0%, var(--ember) 45%, #C9591F 100%);
+  box-shadow: 0 0 8px 1px var(--ember-edge), inset 0 -1px 2px rgba(120,40,0,0.5);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  animation: ember-breathe 4.5s ease-in-out infinite;
 }
-.titlebar-logo i { font-size: 11px; color: var(--c1); }
-.titlebar-name { font-size: 12px; font-weight: 600; color: var(--c1); letter-spacing: 0.05em; }
+.titlebar-logo i { font-size: 10px; color: #3a1500; }
+@keyframes ember-breathe {
+  0%, 100% { box-shadow: 0 0 7px 1px rgba(255,158,94,0.45), inset 0 -1px 2px rgba(120,40,0,0.5); }
+  50%      { box-shadow: 0 0 11px 2px rgba(255,158,94,0.7), inset 0 -1px 2px rgba(120,40,0,0.5); }
+}
+.titlebar-name {
+  font-family: var(--mono);
+  font-size: 12px; font-weight: 700; color: var(--text);
+  letter-spacing: 0.22em; text-transform: uppercase;
+}
 .titlebar-controls {
   margin-left: auto;
   display: flex;
@@ -102,11 +137,12 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
 }
 
 .nav-section-label {
+  font-family: var(--mono);
   font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
+  font-weight: 500;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--muted);
   padding: 10px 16px 5px;
 }
 
@@ -114,8 +150,13 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
   display: flex;
   align-items: center;
   gap: 9px;
+  width: 100%;
   padding: 8px 16px;
   font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  background: transparent;
+  border: none;
   color: var(--muted);
   cursor: pointer;
   border-left: 2px solid transparent;
@@ -123,11 +164,13 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
   position: relative;
 }
 .nav-item:hover { background: var(--accent-lo); color: var(--text); }
+/* Active = the view you're in is lit by the hearth. */
 .nav-item.active {
-  background: rgba(103,192,144,0.10);
-  color: var(--c1);
-  border-left-color: var(--c2);
+  background: var(--ember-soft);
+  color: #FFCFA6;
+  border-left-color: var(--ember);
 }
+.nav-item.active i { color: var(--ember); }
 .nav-item i { font-size: 15px; width: 16px; flex-shrink: 0; }
 .nav-badge {
   margin-left: auto;
@@ -231,9 +274,9 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
   border-radius: var(--radius-md);
   padding: 12px 14px;
 }
-.stat-label { font-size: 9px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); margin-bottom: 4px; }
-.stat-val { font-size: 22px; font-weight: 600; color: var(--text); }
-.stat-val span { font-size: 11px; color: var(--muted); margin-left: 3px; font-weight: 400; }
+.stat-label { font-family: var(--mono); font-size: 9px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+.stat-val { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--text); }
+.stat-val span { font-family: 'Inter', sans-serif; font-size: 11px; color: var(--muted); margin-left: 3px; font-weight: 400; }
 
 /* ── SECTION HEADER ──────────────────────── */
 .section-header {
@@ -242,8 +285,10 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
   gap: 10px;
   margin-bottom: 12px;
 }
-.section-title { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); white-space: nowrap; }
-.section-line { flex: 1; height: 1px; background: var(--border); }
+.section-title { font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); white-space: nowrap; display: flex; align-items: center; gap: 7px; }
+/* Ember tick marks the start of a section. */
+.section-title::before { content: ""; width: 6px; height: 6px; border-radius: 2px; background: var(--ember); box-shadow: 0 0 6px var(--ember-edge); flex-shrink: 0; }
+.section-line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--border), transparent); }
 
 /* ── APP GRID ────────────────────────────── */
 .app-grid {
@@ -590,29 +635,37 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
 }
 .btn-refresh:hover { background: var(--surface3); color: var(--c1); }
 
-.svc-meta { font-size: 11px; color: var(--faint); margin: 4px 0 8px; }
+.svc-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); margin: 4px 0 9px; letter-spacing: 0.02em; }
 .svc-list { display: flex; flex-direction: column; gap: 6px; }
 
 .svc-row {
   display: flex; align-items: center; gap: 12px;
   background: var(--surface); border: 1px solid var(--border);
+  border-left: 2px solid transparent;
   border-radius: var(--radius-md); padding: 10px 14px;
+  box-shadow: var(--shadow-row);
+  transition: border-color 0.13s, background 0.13s;
 }
-.svc-row:hover { border-color: var(--border-hi); }
-.svc-row.is-system { opacity: 0.85; }
+.svc-row:hover { border-color: var(--border-hi); background: var(--surface2); }
+.svc-row.is-system { opacity: 0.82; }
+/* A lit pilot light: this service is running / this startup item is enabled. */
+.svc-row.is-on { border-left-color: var(--c2); }
 .svc-info { flex: 1; min-width: 0; }
 .svc-name { font-size: 13px; font-weight: 600; color: var(--text);
   display: flex; align-items: center; gap: 8px; }
-.svc-sub  { font-size: 11px; color: var(--muted); margin-top: 2px;
+.svc-sub  { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-top: 3px;
+  letter-spacing: 0.01em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.svc-sub, .svc-cmd { user-select: text; }   /* let paths be selected/copied */
 .svc-cmd  { color: var(--faint); }
-.svc-cmd.ghost { font-style: italic; opacity: 0.8; }
-.svc-state.run  { color: var(--c2); font-weight: 600; }
+.svc-cmd.ghost { font-style: italic; opacity: 0.85; }
+.svc-state.run  { color: var(--c2); font-weight: 700; }
 .svc-state.stop { color: var(--faint); }
 .sys-tag {
-  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  font-family: var(--mono);
+  font-size: 8.5px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--muted); background: var(--surface3);
-  padding: 1px 6px; border-radius: 999px;
+  padding: 2px 7px; border-radius: 999px;
 }
 
 /* On/off switch */
@@ -620,14 +673,15 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
   flex-shrink: 0; width: 42px; height: 24px; border-radius: 999px;
   border: none; cursor: pointer; position: relative; padding: 0;
   display: flex; align-items: center;
-  transition: background 0.18s;
+  transition: background 0.18s, box-shadow 0.18s;
 }
-.tswitch.off { background: var(--surface3); }
-.tswitch.on  { background: var(--c2); }
+.tswitch.off { background: var(--surface3); box-shadow: inset 0 1px 2px rgba(0,0,0,0.3); }
+.tswitch.on  { background: var(--c2); box-shadow: 0 0 10px rgba(103,192,144,0.35); }
 .tswitch .tswitch-knob {
   position: absolute; top: 3px; left: 3px;
   width: 18px; height: 18px; border-radius: 50%;
   background: #fff; transition: transform 0.18s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.35);
 }
 .tswitch.on .tswitch-knob { transform: translateX(18px); }
 .tswitch.busy { cursor: default; justify-content: center; color: var(--text); }
@@ -642,11 +696,11 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
 .seg {
   border: none; background: transparent; color: var(--muted);
   font-size: 11px; font-weight: 600; font-family: inherit; cursor: pointer;
-  padding: 4px 10px; border-radius: 4px; transition: background 0.15s, color 0.15s;
+  padding: 4px 10px; border-radius: 4px; transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 .seg:hover { color: var(--c1); }
-.seg.active { background: var(--c2); color: var(--bg); }
-.seg.active.off { background: #ef4444; color: #fff; }
+.seg.active { background: var(--c2); color: var(--bg); box-shadow: 0 1px 4px rgba(103,192,144,0.4); }
+.seg.active.off { background: #ef4444; color: #fff; box-shadow: 0 1px 4px rgba(239,68,68,0.4); }
 .seg-busy { display: flex; align-items: center; justify-content: center; padding: 4px 30px; color: var(--text); }
 
 .loading-row, .empty-row {
@@ -664,8 +718,10 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
 .modal {
   background: var(--surface2); border: 1px solid var(--border-hi);
   border-radius: var(--radius-md); padding: 20px; max-width: 380px;
-  box-shadow: 0 16px 50px rgba(0,0,0,0.5);
+  box-shadow: var(--shadow-pop);
+  animation: modal-rise 0.18s ease;
 }
+@keyframes modal-rise { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .modal-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: var(--text); }
 .modal-title .ti { color: #eab308; }
 .modal-msg { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 10px 0 18px; }

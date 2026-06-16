@@ -1189,32 +1189,32 @@ document.getElementById("app").innerHTML = `
   <div class="layout">
     <aside class="sidebar">
       <div class="nav-section-label">Menu</div>
-      <div class="nav-item active" id="nav-all">
-        <i class="ti ti-apps"></i> Apps
+      <button type="button" class="nav-item active" id="nav-all">
+        <i class="ti ti-apps" aria-hidden="true"></i> Apps
         <span class="nav-badge">${APPS.length}</span>
-      </div>
-      <div class="nav-item" id="nav-configs">
-        <i class="ti ti-file-code"></i> Configs
+      </button>
+      <button type="button" class="nav-item" id="nav-configs">
+        <i class="ti ti-file-code" aria-hidden="true"></i> Configs
         <span class="nav-badge">${CONFIGS.length}</span>
-      </div>
-      <div class="nav-item" id="nav-notes">
-        <i class="ti ti-notes"></i> Notes
-      </div>
+      </button>
+      <button type="button" class="nav-item" id="nav-notes">
+        <i class="ti ti-notes" aria-hidden="true"></i> Notes
+      </button>
 
       <div class="nav-section-label">System</div>
-      <div class="nav-item" id="nav-services">
-        <i class="ti ti-settings-cog"></i> Services
-      </div>
-      <div class="nav-item" id="nav-startup">
-        <i class="ti ti-player-play"></i> Startup
-      </div>
+      <button type="button" class="nav-item" id="nav-services">
+        <i class="ti ti-settings-cog" aria-hidden="true"></i> Services
+      </button>
+      <button type="button" class="nav-item" id="nav-startup">
+        <i class="ti ti-player-play" aria-hidden="true"></i> Startup
+      </button>
 
       <div class="nav-section-label">Categories</div>
       ${Object.entries(CATS).map(([key, val]) => `
-        <div class="nav-item" data-cat="${key}">
-          <i class="ti ${val.icon}"></i> ${val.label}
+        <button type="button" class="nav-item" data-cat="${key}">
+          <i class="ti ${val.icon}" aria-hidden="true"></i> ${val.label}
           <span class="nav-badge">${APPS.filter(a => a.cat === key).length}</span>
-        </div>
+        </button>
       `).join("")}
 
       <div class="sidebar-spacer"></div>
@@ -1399,8 +1399,12 @@ function toast(msg, kind = "info") {
   if (!host) {
     host = document.createElement("div");
     host.id = "toast-host";
+    host.setAttribute("role", "status");
+    host.setAttribute("aria-live", "polite");
     document.body.appendChild(host);
   }
+  // Errors should interrupt; routine updates can wait their turn.
+  host.setAttribute("aria-live", kind === "error" ? "assertive" : "polite");
   const el = document.createElement("div");
   el.className = `toast toast-${kind}`;
   el.textContent = msg;
@@ -1432,11 +1436,13 @@ function bindElevateBtn() {
   document.getElementById("btn-elevate")?.addEventListener("click", () => ensureAdmin());
 }
 
-function toggleSwitch(kind, key, checked, busy) {
+function toggleSwitch(kind, key, checked, busy, label) {
+  const action = checked ? "Turn off" : "Turn on";
+  const aria = label ? `${action} ${label}` : action;
   return `<button class="tswitch ${checked ? "on" : "off"}${busy ? " busy" : ""}"
     data-toggle="${kind}" data-key="${encodeURIComponent(key)}" ${busy ? "disabled" : ""}
-    role="switch" aria-checked="${checked}" title="${checked ? "Turn off" : "Turn on"}">
-    ${busy ? `<i class="ti ti-loader-2 spin"></i>` : `<span class="tswitch-knob"></span>`}
+    role="switch" aria-checked="${checked}" aria-label="${escapeHtml(aria)}" title="${action}">
+    ${busy ? `<i class="ti ti-loader-2 spin" aria-hidden="true"></i>` : `<span class="tswitch-knob"></span>`}
   </button>`;
 }
 
@@ -1451,24 +1457,44 @@ function bindStartupToggles(content) {
 }
 
 // Lightweight in-app confirmation (Tauri blocks native window.confirm).
+// Accessible: dialog semantics, focus moves in and is restored, Escape cancels,
+// Tab is trapped between the two buttons.
 function confirmDialog(title, message) {
   return new Promise(resolve => {
+    const prevFocus = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "modal-overlay";
     overlay.innerHTML = `
-      <div class="modal">
-        <div class="modal-title"><i class="ti ti-alert-triangle"></i> ${escapeHtml(title)}</div>
-        <div class="modal-msg">${escapeHtml(message)}</div>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-t" aria-describedby="modal-m">
+        <div class="modal-title" id="modal-t"><i class="ti ti-alert-triangle" aria-hidden="true"></i> ${escapeHtml(title)}</div>
+        <div class="modal-msg" id="modal-m">${escapeHtml(message)}</div>
         <div class="modal-actions">
           <button class="modal-btn cancel">Cancel</button>
           <button class="modal-btn danger">Disable</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
-    const done = v => { overlay.remove(); resolve(v); };
-    overlay.querySelector(".cancel").onclick = () => done(false);
-    overlay.querySelector(".danger").onclick = () => done(true);
+
+    const cancelBtn = overlay.querySelector(".cancel");
+    const dangerBtn = overlay.querySelector(".danger");
+    const done = v => {
+      document.removeEventListener("keydown", onKey, true);
+      overlay.remove();
+      if (prevFocus && prevFocus.focus) prevFocus.focus();
+      resolve(v);
+    };
+    const onKey = e => {
+      if (e.key === "Escape") { e.preventDefault(); done(false); }
+      else if (e.key === "Tab") {        // trap focus between the two buttons
+        e.preventDefault();
+        (document.activeElement === cancelBtn ? dangerBtn : cancelBtn).focus();
+      }
+    };
+    document.addEventListener("keydown", onKey, true);
+    cancelBtn.onclick = () => done(false);
+    dangerBtn.onclick = () => done(true);
     overlay.onclick = e => { if (e.target === overlay) done(false); };
+    cancelBtn.focus(); // default to the safe choice
   });
 }
 
@@ -1498,20 +1524,21 @@ function currentMode(s) {
 
 function serviceModeControl(s) {
   if (svcBusy[s.Name]) {
-    return `<div class="seg-group"><span class="seg-busy"><i class="ti ti-loader-2 spin"></i></span></div>`;
+    return `<div class="seg-group"><span class="seg-busy"><i class="ti ti-loader-2 spin" aria-hidden="true"></i></span></div>`;
   }
-  const cur = currentMode(s);
-  const key = encodeURIComponent(s.Name);
+  const cur  = currentMode(s);
+  const key  = encodeURIComponent(s.Name);
+  const name = escapeHtml(s.DisplayName || s.Name);
   const seg = (val, label) =>
-    `<button class="seg${cur === val ? " active" : ""}${val === "disabled" ? " off" : ""}" data-svcmode="${val}" data-svc="${key}">${label}</button>`;
-  return `<div class="seg-group">${seg("auto", "Auto")}${seg("manual", "Manual")}${seg("disabled", "Off")}</div>`;
+    `<button class="seg${cur === val ? " active" : ""}${val === "disabled" ? " off" : ""}" data-svcmode="${val}" data-svc="${key}" aria-pressed="${cur === val}" aria-label="Set ${name} startup to ${label}">${label}</button>`;
+  return `<div class="seg-group" role="group" aria-label="Startup type for ${name}">${seg("auto", "Auto")}${seg("manual", "Manual")}${seg("disabled", "Off")}</div>`;
 }
 
 function serviceRow(s) {
   const running = (s.State || "").toLowerCase() === "running";
   const sys     = isSystemService(s);
   return `
-    <div class="svc-row${sys ? " is-system" : ""}">
+    <div class="svc-row${running ? " is-on" : ""}${sys ? " is-system" : ""}">
       <div class="svc-info">
         <div class="svc-name">${escapeHtml(s.DisplayName || s.Name)}${sys ? ` <span class="sys-tag">system</span>` : ""}</div>
         <div class="svc-sub">${escapeHtml(s.Name)} · <span class="svc-state ${running ? "run" : "stop"}">${running ? "Running" : "Stopped"}</span> · ${escapeHtml(s.StartMode || "")}</div>
@@ -1610,12 +1637,12 @@ function startupRow(i) {
     : ` · <span class="svc-cmd ghost">no launch command</span>`;
   const titleAttr = i.command ? "" : ` title="No launch command — enabling won't start anything (the app removed its startup entry)."`;
   return `
-    <div class="svc-row"${titleAttr}>
+    <div class="svc-row${i.enabled ? " is-on" : ""}"${titleAttr}>
       <div class="svc-info">
         <div class="svc-name">${escapeHtml(i.name)}</div>
         <div class="svc-sub">${escapeHtml(i.location)}${detail}</div>
       </div>
-      ${toggleSwitch("startup", i.id, i.enabled, busy)}
+      ${toggleSwitch("startup", i.id, i.enabled, busy, i.name)}
     </div>`;
 }
 
