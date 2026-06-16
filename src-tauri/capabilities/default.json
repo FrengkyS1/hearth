@@ -1,0 +1,10 @@
+{
+  "identifier": "default",
+  "description": "Default capability for Hearth — enables window controls and core APIs",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "fs:default"
+  ]
+}
