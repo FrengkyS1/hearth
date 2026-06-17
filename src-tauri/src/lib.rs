@@ -139,7 +139,7 @@ async fn get_github_asset_url(repo: String, asset_match: Option<String>) -> Resu
         .iter()
         .filter(|a| {
             let name = a["name"].as_str().unwrap_or("").to_lowercase();
-            (name.ends_with(".exe") || name.ends_with(".msi"))
+            (name.ends_with(".exe") || name.ends_with(".msi") || name.ends_with(".zip"))
                 && !name.contains("debug")
                 && !name.contains("symbol")
                 // Skip builds for other CPU architectures (this app ships x64).
@@ -154,6 +154,7 @@ async fn get_github_asset_url(repo: String, asset_match: Option<String>) -> Resu
             // Prefer a real .exe installer (supports the silent "/S" flag) over a
             // raw .msi, which has to be driven through msiexec instead.
             if name.ends_with(".exe") { score += 2; }
+            if name.ends_with(".zip") { score += 1; }
             if name.contains("x64") || name.contains("x86_64") || name.contains("win64") { score += 1; }
             score
         })
@@ -518,9 +519,25 @@ fn check_appx_installed(name_match: &str) -> Option<String> {
 /// Synchronous body of `check_app_installed` (registry scan + optional AppX
 /// query). Run off-thread by the command wrapper so the UI never blocks.
 fn check_app_installed_sync(app_id: &str) -> Result<Option<String>, String> {
-    if app_id == "nerdfonts"     { return check_nerd_fonts_installed(); }
+    if app_id == "nerdfonts"            { return check_nerd_fonts_installed(); }
+    if app_id == "librehardwaremonitor" {
+        let addr: std::net::SocketAddr = "127.0.0.1:8085".parse().unwrap();
+        if std::net::TcpStream::connect_timeout(&addr, Duration::from_millis(500)).is_ok() {
+            return Ok(Some("installed".to_string()));
+        }
+        return Ok(find_lhm_exe().map(|_| "installed".to_string()));
+    }
     // TranslucentTB ships from the Microsoft Store as a UWP package.
     if app_id == "translucenttb" { return Ok(check_appx_installed("TranslucentTB")); }
+    // fastfetch is typically installed via WinGet — detect via PATH lookup.
+    if app_id == "fastfetch" {
+        let found = std::process::Command::new("where.exe")
+            .arg("fastfetch")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        return Ok(if found { Some("installed".to_string()) } else { None });
+    }
 
     let names: &[&str] = match app_id {
         "glazewm"     => &["GlazeWM"],
@@ -836,6 +853,192 @@ async fn set_startup(id: String, enabled: bool) -> Result<(), String> {
         .await.map_err(|e| e.to_string())?.map(|_| ())
 }
 
+// ── LHM / Hardware Monitor ─────────────────────────────────────────────────────
+
+fn find_lhm_exe() -> Option<std::path::PathBuf> {
+    let managed = std::env::var("LOCALAPPDATA").ok().map(|d|
+        std::path::PathBuf::from(d).join("Hearth").join("lhm").join("LibreHardwareMonitor.exe")
+    );
+    if let Some(ref p) = managed { if p.exists() { return managed; } }
+    [
+        r"C:\Program Files\LibreHardwareMonitor\LibreHardwareMonitor.exe",
+        r"C:\LibreHardwareMonitor\LibreHardwareMonitor.exe",
+    ].iter().map(std::path::PathBuf::from).find(|p| p.exists())
+}
+
+fn collect_sensors(node: &Value, out: &mut Vec<Value>) {
+    if let (Some(st), Some(text), Some(val)) = (
+        node.get("Type").and_then(|v| v.as_str()),
+        node.get("Text").and_then(|v| v.as_str()),
+        node.get("Value").and_then(|v| v.as_str()),
+    ) {
+        let num: f64 = val.chars()
+            .take_while(|c| c.is_ascii_digit() || *c == '.' || *c == ',')
+            .collect::<String>()
+            .replace(',', ".")
+            .parse()
+            .unwrap_or(0.0);
+        out.push(serde_json::json!({ "type": st, "name": text, "value": num, "raw": val }));
+    }
+    if let Some(children) = node.get("Children").and_then(|v| v.as_array()) {
+        for child in children { collect_sensors(child, out); }
+    }
+}
+
+#[tauri::command]
+async fn check_lhm_running() -> bool {
+    match build_client(2) {
+        Ok(c) => c.get("http://localhost:8085/data.json")
+            .send().await
+            .map(|r| r.status().is_success())
+            .unwrap_or(false),
+        Err(_) => false,
+    }
+}
+
+#[tauri::command]
+async fn get_hardware_data() -> Result<Value, String> {
+    let client = build_client(3)?;
+    let data: Value = client
+        .get("http://localhost:8085/data.json")
+        .send().await.map_err(|e| format!("LHM not reachable: {e}"))?
+        .json().await.map_err(|e| e.to_string())?;
+    let mut sensors = Vec::new();
+    collect_sensors(&data, &mut sensors);
+    Ok(Value::Array(sensors))
+}
+
+#[tauri::command]
+fn start_lhm() -> Result<(), String> {
+    let exe = find_lhm_exe()
+        .ok_or_else(|| "LibreHardwareMonitor not found. Download it first.".to_string())?;
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    std::process::Command::new(&exe)
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .map_err(|e| if e.raw_os_error() == Some(740) {
+            "LibreHardwareMonitor needs administrator privileges to read hardware sensors.".to_string()
+        } else {
+            format!("Failed to start LibreHardwareMonitor: {e}")
+        })
+        .map(|_| ())
+}
+
+fn extract_zip_to_dir(
+    data: &[u8],
+    dest: &std::path::Path,
+    app: &tauri::AppHandle,
+    app_id: &str,
+    cancel: &Arc<AtomicBool>,
+) -> Result<(), String> {
+    use std::io::{Cursor, Read};
+    use zip::ZipArchive;
+    let mut archive = ZipArchive::new(Cursor::new(data)).map_err(|e| e.to_string())?;
+    let total = archive.len() as u32;
+    std::fs::create_dir_all(dest).map_err(|e| format!("Cannot create dir: {e}"))?;
+    for i in 0..archive.len() {
+        if cancel.load(Ordering::Relaxed) { return Err("cancelled".to_string()); }
+        let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        if entry.name().ends_with('/') { continue; }
+        let raw_name = entry.name().to_string();
+        let filename = raw_name.rsplit(['/', '\\']).next()
+            .filter(|s| !s.is_empty()).unwrap_or(&raw_name);
+        let filename: String = filename.chars()
+            .filter(|c| c.is_alphanumeric() || matches!(c, '.' | '-' | '_' | ' '))
+            .collect();
+        if filename.is_empty() { continue; }
+        let mut buf = Vec::new();
+        entry.read_to_end(&mut buf).map_err(|e| e.to_string())?;
+        std::fs::write(dest.join(&filename), &buf)
+            .map_err(|e| format!("Write {filename}: {e}"))?;
+        app.emit("install-progress", serde_json::json!({
+            "id": app_id, "state": "extracting",
+            "step": i as u32 + 1, "total": total,
+        })).ok();
+    }
+    Ok(())
+}
+
+async fn do_extract_to_dir(
+    app: &tauri::AppHandle,
+    app_id: &str,
+    url: &str,
+    dest: std::path::PathBuf,
+    cancel: &Arc<AtomicBool>,
+) -> Result<(), String> {
+    app.emit("install-progress",
+        serde_json::json!({ "id": app_id, "state": "downloading", "pct": 0 })).ok();
+    let response = build_client(300)?.get(url).send().await.map_err(|e| e.to_string())?;
+    if !response.status().is_success() {
+        return Err(format!("HTTP {}", response.status().as_u16()));
+    }
+    let bytes = stream_download(app, app_id, response, cancel).await?;
+    if cancel.load(Ordering::Relaxed) { return Err("cancelled".to_string()); }
+    app.emit("install-progress",
+        serde_json::json!({ "id": app_id, "state": "installing" })).ok();
+    let (app_c, id_c, cc) = (app.clone(), app_id.to_string(), Arc::clone(cancel));
+    tokio::task::spawn_blocking(move || extract_zip_to_dir(&bytes, &dest, &app_c, &id_c, &cc))
+        .await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn download_and_extract_lhm(
+    app: tauri::AppHandle,
+    app_id: String,
+    url: String,
+) -> Result<(), String> {
+    if !is_trusted_download_url(&url) {
+        return Err("Download URL must originate from github.com".to_string());
+    }
+    let dest = std::path::PathBuf::from(
+        std::env::var("LOCALAPPDATA").map_err(|e| e.to_string())?
+    ).join("Hearth").join("lhm");
+    let cancel = app.state::<Downloads>().register(&app_id);
+    let result = do_extract_to_dir(&app, &app_id, &url, dest, &cancel).await;
+    app.state::<Downloads>().remove(&app_id);
+    emit_final(&app, &app_id, &result);
+    result
+}
+
+// ── config file write ──────────────────────────────────────────────────────────
+
+#[tauri::command]
+async fn write_config_file(path: String, content: String) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        let home = std::env::var("USERPROFILE").unwrap_or_default();
+        let expanded = path.replace('~', &home);
+        let p = std::path::Path::new(&expanded);
+        if p.exists() {
+            let bak = format!("{}.hearth.bak", &expanded);
+            std::fs::copy(p, &bak).map_err(|e| format!("Backup failed: {}", e))?;
+        }
+        if let Some(parent) = p.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("mkdir failed: {}", e))?;
+        }
+        std::fs::write(p, content).map_err(|e| format!("Write failed: {}", e))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn open_in_explorer(path: String) -> Result<(), String> {
+    let home = std::env::var("USERPROFILE").unwrap_or_default();
+    let expanded = path.replace('~', &home);
+    let p = std::path::Path::new(&expanded);
+    let arg = if p.exists() {
+        format!("/select,{}", expanded)
+    } else {
+        p.parent().and_then(|d| d.to_str()).unwrap_or("").to_string()
+    };
+    std::process::Command::new("explorer.exe")
+        .arg(&arg)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 // ── entry point ────────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -861,6 +1064,12 @@ pub fn run() {
             set_service_mode,
             list_startup,
             set_startup,
+            check_lhm_running,
+            get_hardware_data,
+            start_lhm,
+            download_and_extract_lhm,
+            write_config_file,
+            open_in_explorer,
         ])
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();

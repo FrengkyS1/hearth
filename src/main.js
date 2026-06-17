@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+﻿import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
 // ── EMBEDDED CONFIGS ─────────────────────────────────────────────────────────
@@ -608,6 +608,71 @@ widgets:
         cancel: ["", "Nah, Im Good "]
 `;
 
+const YASB_HW_WIDGETS = `
+  cpu:
+    type: "yasb.cpu.CpuWidget"
+    options:
+      label: "<span></span> {info[percent][total]}%"
+      label_alt: "<span></span> {info[percent][total]}% | {info[freq][current]:.0f} MHz"
+      update_interval: 2000
+      cpu_thresholds:
+        low: 25
+        medium: 50
+        high: 90
+      callbacks:
+        on_left: "toggle_label"
+        on_right: "exec cmd /c Taskmgr"
+      label_shadow:
+        enabled: true
+        color: "black"
+        radius: 3
+        offset: [ 1, 1 ]
+
+  cpu_temp:
+    type: "yasb.libre_monitor.LibreHardwareMonitorWidget"
+    options:
+      # Find your sensor ID at http://localhost:8085/data.json
+      # AMD: /amdcpu/0/temperature/0  Intel: /intelcpu/0/temperature/8
+      label: "{info[value]}{info[unit]}"
+      label_alt: "{info[min]}/{info[max]} {info[unit]}"
+      sensor_id: "/amdcpu/0/temperature/0"
+      class_name: "cpu-temp"
+      update_interval: 2000
+      precision: 0
+      server_host: "localhost"
+      server_port: 8085
+      callbacks:
+        on_left: "toggle_label"
+      label_shadow:
+        enabled: true
+        color: "black"
+        radius: 3
+        offset: [ 1, 1 ]
+
+  gpu:
+    type: "yasb.gpu.GpuWidget"
+    options:
+      label: "<span></span> {info[utilization]}% {info[temp]}°C"
+      label_alt: "<span></span> {info[utilization]}% | VRAM: {info[mem_used]}/{info[mem_total]}"
+      update_interval: 2000
+      gpu_thresholds:
+        low: 25
+        medium: 50
+        high: 90
+      callbacks:
+        on_left: "toggle_label"
+        on_right: "exec cmd /c Taskmgr"
+      label_shadow:
+        enabled: true
+        color: "black"
+        radius: 3
+        offset: [ 1, 1 ]
+`;
+
+const YASB_CONFIG_HW = YASB_CONFIG
+  .replace(/"media",(\s+)"memory",/, '"media",$1"cpu",$1"cpu_temp",$1"gpu",$1"memory",')
+  + YASB_HW_WIDGETS;
+
 // ── DATA ─────────────────────────────────────────────────────────────────────
 
 const APPS = [
@@ -691,6 +756,36 @@ const APPS = [
     fontInstall: true,
   },
   {
+    id: "librehardwaremonitor",
+    name: "LibreHardwareMonitor",
+    cat: "hw",
+    icon: "ti-temperature",
+    iconClass: "icon-hw",
+    tagClass: "tag-hw",
+    tagLabel: "Hardware",
+    desc: "Open-source hardware monitor for CPU/GPU temperatures, fan speeds, voltages, and more. Powers the temperature display in the status bar.",
+    dl: "https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/latest",
+    src: "https://github.com/LibreHardwareMonitor/LibreHardwareMonitor",
+    gh: "LibreHardwareMonitor/LibreHardwareMonitor",
+    extractInstall: true,
+    assetMatch: "net472",
+  },
+  {
+    id: "fastfetch",
+    name: "Fastfetch",
+    cat: "shell",
+    icon: "ti-terminal-2",
+    iconClass: "icon-shell",
+    tagClass: "tag-shell",
+    tagLabel: "Shell",
+    desc: "Blazing-fast system info tool. Displays OS, CPU, RAM, disk and more at terminal startup. Configure via JSON.",
+    dl: "https://github.com/fastfetch-cli/fastfetch/releases/latest",
+    src: "https://github.com/fastfetch-cli/fastfetch",
+    gh: "fastfetch-cli/fastfetch",
+    assetMatch: "windows-amd64.zip",
+    extractInstall: true,
+  },
+  {
     id: "filepilot",
     name: "File Pilot",
     cat: "file",
@@ -705,6 +800,79 @@ const APPS = [
     dlFlags: ["/S"],
   },
 ];
+
+// Merge in any custom apps saved from the Add App dialog
+try {
+  const _custom = JSON.parse(localStorage.getItem("hearth.customApps") || "[]");
+  APPS.push(..._custom);
+} catch {}
+
+const PS_PROFILE = String.raw`# Default folder for VSCode — opens this when 'code' is run with no arguments
+$env:CODE_DEFAULT_PATH = "C:\Users\ASUS\Documents\Code"
+
+function code {
+    if ($args.Count -eq 0) {
+        & "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe" $env:CODE_DEFAULT_PATH
+    } else {
+        & "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe" @args
+    }
+}
+
+fastfetch
+`;
+
+const FASTFETCH_CONFIG = `{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": {
+    "type": "none"
+  },
+  "display": {
+    "separator": " "
+  },
+  "modules": [
+    "break",
+    {
+      "type": "title",
+      "color": {
+        "user": "#F5C2E7",
+        "at": "#CDD6F4",
+        "host": "#89DCEB"
+      }
+    },
+    "break",
+    {
+      "type": "os",
+      "key": "",
+      "keyColor": "#89DCEB"
+    },
+    {
+      "type": "cpu",
+      "key": "",
+      "keyColor": "#F5C2E7"
+    },
+    {
+      "type": "board",
+      "key": "󰚗",
+      "keyColor": "#FAB387"
+    },
+    {
+      "type": "memory",
+      "key": "",
+      "keyColor": "#A6E3A1",
+      "format": "{used} / {total} ({percentage})"
+    },
+    {
+      "type": "disk",
+      "key": "",
+      "keyColor": "#94E2D5"
+    },
+    "break",
+    {
+      "type": "colors",
+      "symbol": "circle"
+    }
+  ]
+}`;
 
 const CONFIGS = [
   {
@@ -721,6 +889,27 @@ const CONFIGS = [
     path: "~\\.config\\yasb\\config.yaml",
     content: YASB_CONFIG,
   },
+  {
+    id: "yasb-hw-config",
+    appId: "yasb",
+    name: "YASB + HW Monitor",
+    path: "~\\.config\\yasb\\config.yaml",
+    content: YASB_CONFIG_HW,
+  },
+  {
+    id: "ps-profile",
+    appId: "powershell",
+    name: "PowerShell Profile",
+    path: "~\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1",
+    content: PS_PROFILE,
+  },
+  {
+    id: "fastfetch-config",
+    appId: "fastfetch",
+    name: "Fastfetch",
+    path: "~\\.config\\fastfetch\\config.jsonc",
+    content: FASTFETCH_CONFIG,
+  },
 ];
 
 const VIEWS = ["apps", "configs"];
@@ -731,6 +920,7 @@ const CATS = {
   hw:      { label: "Hardware",     icon: "ti-cpu" },
   file:    { label: "File Manager", icon: "ti-folder-open" },
   font:    { label: "Font",         icon: "ti-letter-case" },
+  shell:   { label: "Shell",        icon: "ti-terminal-2" },
 };
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
@@ -805,7 +995,7 @@ function installBtnHtml(appId, fontInstall) {
   if (s === "downloading") {
     const pct  = info.pct ?? 0;
     const step = fontInstall ? "1/2" : "2/3";
-    return `<span class="step-label">${step}</span><i class="ti ti-loader-2 spin"></i><span class="dl-pct">${pct}%</span><div class="dl-bar"><div class="dl-fill" style="width:${pct}%"></div></div>`;
+    return `<span class="step-label">${step}</span><i class="ti ti-loader-2 spin"></i><span class="dl-pct">${pct}%</span><div class="dl-bar"><div class="dl-fill" style="transform:scaleX(${pct/100})"></div></div>`;
   }
 
   if (s === "installing")
@@ -815,7 +1005,7 @@ function installBtnHtml(appId, fontInstall) {
     const step  = info.step  ?? 0;
     const total = info.total ?? 1;
     const pct   = total ? Math.round((step / total) * 100) : 0;
-    return `<span class="step-label">2/2</span><i class="ti ti-loader-2 spin"></i><span class="dl-pct">${step}/${total}</span><div class="dl-bar"><div class="dl-fill" style="width:${pct}%"></div></div>`;
+    return `<span class="step-label">2/2</span><i class="ti ti-loader-2 spin"></i><span class="dl-pct">${step}/${total}</span><div class="dl-bar"><div class="dl-fill" style="transform:scaleX(${pct/100})"></div></div>`;
   }
 
   if (s === "cancelled")
@@ -861,13 +1051,13 @@ function updateInstallBtn(btn, appId) {
     if (s === "downloading") {
       const pct = info?.pct ?? 0;
       if (pctEl)  pctEl.textContent  = `${pct}%`;
-      if (fillEl) fillEl.style.width = `${pct}%`;
+      if (fillEl) fillEl.style.transform = `scaleX(${pct / 100})`;
     } else {
       const step  = info?.step  ?? 0;
       const total = info?.total ?? 1;
       const pct   = total ? Math.round((step / total) * 100) : 0;
       if (pctEl)  pctEl.textContent  = `${step}/${total}`;
-      if (fillEl) fillEl.style.width = `${pct}%`;
+      if (fillEl) fillEl.style.transform = `scaleX(${pct / 100})`;
     }
   } else {
     btn.innerHTML = installBtnHtml(appId, btn.dataset.fontInstall === "true");
@@ -904,13 +1094,15 @@ function renderSidebar() {
   const navStartup  = document.getElementById("nav-startup");
   const catNavs    = document.querySelectorAll("[data-cat]");
 
-  [navAll, navConfigs, navServices, navStartup].forEach(n => n?.classList.remove("active"));
+  const navHardware = document.getElementById("nav-hardware");
+  [navAll, navConfigs, navServices, navStartup, navHardware].forEach(n => n?.classList.remove("active"));
   catNavs.forEach(n => n.classList.remove("active"));
 
   if (state.view === "apps" && !state.cat) navAll?.classList.add("active");
   if (state.view === "configs")  navConfigs?.classList.add("active");
   if (state.view === "services") navServices?.classList.add("active");
   if (state.view === "startup")  navStartup?.classList.add("active");
+  if (state.view === "hardware") navHardware?.classList.add("active");
   if (state.cat) {
     document.querySelector(`[data-cat="${state.cat}"]`)?.classList.add("active");
   }
@@ -926,12 +1118,13 @@ function renderTopbar() {
     configs:  { icon: "ti-file-code",    label: "Configs",  sub: "Dotfiles & config links" },
     services: { icon: "ti-settings-cog", label: "Services", sub: "Enable or disable Windows services" },
     startup:  { icon: "ti-player-play",  label: "Startup",  sub: "Toggle startup apps on or off" },
+    hardware: { icon: "ti-cpu-2",        label: "Hardware", sub: "CPU & GPU temperatures and load" },
   };
 
   const info = labels[state.view];
   icon.className    = `ti ${info.icon} topbar-icon`;
   title.textContent = state.cat ? CATS[state.cat]?.label : info.label;
-  sub.textContent   = state.cat ? `Filtered by category` : info.sub;
+  sub.textContent   = state.cat ? `${APPS.filter(a => a.cat === state.cat).length} apps` : info.sub;
 
   // Search box is only meaningful for the list-style views.
   const placeholders = { apps: "Search apps…", services: "Search services…", startup: "Search startup apps…" };
@@ -964,11 +1157,44 @@ function renderContent() {
         }).catch(() => {});
       });
     });
+
+    content.querySelectorAll("[data-apply-id]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const cfg = CONFIGS.find(c => c.id === btn.dataset.applyId);
+        if (!cfg) return;
+        const ok = await confirmDialog(
+          "Apply config?",
+          `Write to ${cfg.path}? The existing file will be backed up as *.hearth.bak first.`,
+          { confirmLabel: "Apply", confirmClass: "modal-btn-ok", icon: "ti-device-floppy" }
+        );
+        if (!ok) return;
+        try {
+          await invoke("write_config_file", { path: cfg.path, content: cfg.content });
+          toast(`${cfg.name} written to disk.`, "ok");
+        } catch (e) {
+          toast(`Apply failed: ${e}`, "error");
+        }
+      });
+    });
+
+    content.querySelectorAll("[data-open-path]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        try { await invoke("open_in_explorer", { path: btn.dataset.openPath }); } catch {}
+      });
+    });
+
+    content.querySelectorAll(".config-card-header").forEach(header => {
+      header.addEventListener("click", e => {
+        if (e.target.closest("[data-copy-id]") || e.target.closest("[data-apply-id]") || e.target.closest("[data-open-path]")) return;
+        header.closest(".config-card").classList.toggle("collapsed");
+      });
+    });
     return;
   }
 
   if (state.view === "services") { renderServices(content); return; }
   if (state.view === "startup")  { renderStartup(content);  return; }
+  if (state.view === "hardware") { renderHardware(content);  return; }
 
   // Apps view
   const apps    = getFiltered();
@@ -1022,8 +1248,11 @@ function renderContent() {
 
       if (installState[appId]) return; // already in progress
 
+      const extractInstall = btn.dataset.extractInstall === "true";
       if (fontInstall) {
         await handleFontInstall(btn, appId, dl);
+      } else if (extractInstall && gh) {
+        await handleExtractInstall(btn, appId, gh, btn.dataset.assetMatch || "");
       } else if (gh) {
         await handleAutoInstall(btn, appId, gh, dl, flags);
       } else {
@@ -1100,7 +1329,9 @@ function appCard(app) {
           data-gh="${app.gh || ""}"
           data-dl="${app.dl}"
           data-flags='${JSON.stringify(app.dlFlags || [])}'
-          data-font-install="${app.fontInstall ? 'true' : 'false'}">
+          data-font-install="${app.fontInstall ? 'true' : 'false'}"
+          data-extract-install="${app.extractInstall ? 'true' : 'false'}"
+          data-asset-match="${app.assetMatch || ''}">
           ${dlHtml}
         </button>
         <button class="btn-cancel" id="btn-cancel-${app.id}"
@@ -1124,7 +1355,7 @@ function appCard(app) {
 function configCard(cfg) {
   const app = APPS.find(a => a.id === cfg.appId);
   return `
-    <div class="config-card">
+    <div class="config-card collapsed" data-config-id="${cfg.id}">
       <div class="config-card-header">
         <div class="app-icon ${app?.iconClass || ""}" style="flex-shrink:0">
           <i class="ti ${app?.icon || "ti-file-code"}"></i>
@@ -1133,11 +1364,22 @@ function configCard(cfg) {
           <div class="config-card-name">${escapeHtml(cfg.name)}</div>
           <div class="config-card-path">${escapeHtml(cfg.path)}</div>
         </div>
+        <button class="btn-folder" data-open-path="${escapeHtml(cfg.path)}" title="Open file location">
+          <i class="ti ti-folder-open"></i>
+        </button>
+        <button class="btn-apply" data-apply-id="${cfg.id}" title="Write this config to disk">
+          <i class="ti ti-device-floppy"></i> Apply
+        </button>
         <button class="btn-copy" data-copy-id="${cfg.id}">
           <i class="ti ti-copy"></i> Copy
         </button>
+        <i class="ti ti-chevron-down config-chevron"></i>
       </div>
-      <pre class="config-code">${escapeHtml(cfg.content)}</pre>
+      <div class="config-body">
+        <div class="config-body-inner">
+          <pre class="config-code">${escapeHtml(cfg.content)}</pre>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -1146,6 +1388,150 @@ function render() {
   renderSidebar();
   renderTopbar();
   renderContent();
+}
+
+// ── HARDWARE MONITOR ──────────────────────────────────────────────────────────
+
+let hwData     = [];
+let lhmRunning = false;
+let hwInterval = null;
+
+const HW_HISTORY_MAX = 24; // 24 × 2.5 s = 60 s rolling window
+const hwHistory = {};
+
+function hwHistoryPush(key, sensor) {
+  if (!sensor) return;
+  if (!hwHistory[key]) hwHistory[key] = [];
+  hwHistory[key].push(sensor.value);
+  if (hwHistory[key].length > HW_HISTORY_MAX) hwHistory[key].shift();
+}
+
+function sparkline(data, color = "var(--c2)") {
+  if (!data || data.length < 2) return "";
+  const W = 64, H = 24;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const pts = data.map((v, i) => {
+    const x = ((i / (data.length - 1)) * W).toFixed(1);
+    const y = (H - ((v - min) / range) * (H - 3) - 1.5).toFixed(1);
+    return `${x},${y}`;
+  }).join(" ");
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block;overflow:visible" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.75"/></svg>`;
+}
+
+async function pollHardware() {
+  try {
+    lhmRunning = await invoke("check_lhm_running");
+    if (lhmRunning) {
+      hwData = await invoke("get_hardware_data") || [];
+      hwHistoryPush("cpuTemp",  hwData.find(s => s.type === "Temperature" && /tdie|tctl|cpu package/i.test(s.name)));
+      hwHistoryPush("cpuLoad",  hwData.find(s => s.type === "Load"        && /cpu total/i.test(s.name)));
+      hwHistoryPush("gpuTemp",  hwData.find(s => s.type === "Temperature" && /gpu core|gpu chip|gpu diode/i.test(s.name)));
+      hwHistoryPush("gpuLoad",  hwData.find(s => s.type === "Load"        && /gpu core/i.test(s.name)));
+      hwHistoryPush("ramLoad",  hwData.find(s => s.type === "Load"        && /memory/i.test(s.name)));
+    }
+  } catch { lhmRunning = false; }
+  if (state.view === "hardware") renderContent();
+}
+
+function startHwPolling() {
+  stopHwPolling();
+  pollHardware();
+  hwInterval = setInterval(pollHardware, 2500);
+}
+
+function stopHwPolling() {
+  if (hwInterval) { clearInterval(hwInterval); hwInterval = null; }
+}
+
+function hwFind(type, nameRe) {
+  return hwData.find(s => s.type === type && nameRe.test(s.name));
+}
+
+function hwRow(label, sensor, unit = "", decimals = 0, histKey = null) {
+  if (!sensor) return "";
+  const spark = histKey ? `<span class="hw-spark">${sparkline(hwHistory[histKey])}</span>` : "";
+  return `<div class="hw-row"><span class="hw-label">${label}</span>${spark}<span class="hw-val">${sensor.value.toFixed(decimals)}${unit}</span></div>`;
+}
+
+function renderHardware(content) {
+  const running = lhmRunning;
+
+  const badge = running
+    ? `<span class="hw-badge hw-badge-on"><i class="ti ti-circle-check"></i> Running</span>`
+    : `<span class="hw-badge hw-badge-off"><i class="ti ti-circle-x"></i> Not running</span>`;
+
+  let body = "";
+  if (running && hwData.length > 0) {
+    const cpuTemp  = hwFind("Temperature", /tdie|tctl|cpu package/i);
+    const gpuTemp  = hwFind("Temperature", /gpu core|gpu chip|gpu diode/i);
+    const cpuLoad  = hwFind("Load",        /cpu total/i);
+    const gpuLoad  = hwFind("Load",        /gpu core/i);
+    const ramLoad  = hwFind("Load",        /memory/i);
+    const cpuPower = hwFind("Power",       /package/i);
+    const gpuMemU  = hwFind("SmallData",   /gpu memory used/i);
+    const gpuMemT  = hwFind("SmallData",   /gpu memory total/i);
+
+    body = `
+      <div class="hw-grid">
+        <div class="hw-card">
+          <div class="hw-card-title"><i class="ti ti-cpu"></i> CPU</div>
+          ${hwRow("Temperature", cpuTemp, " °C", 0, "cpuTemp")}
+          ${hwRow("Load",        cpuLoad, " %",  0, "cpuLoad")}
+          ${hwRow("Power",       cpuPower," W",  1)}
+        </div>
+        <div class="hw-card">
+          <div class="hw-card-title"><i class="ti ti-device-desktop"></i> GPU</div>
+          ${hwRow("Temperature", gpuTemp, " °C", 0, "gpuTemp")}
+          ${hwRow("Load",        gpuLoad, " %",  0, "gpuLoad")}
+          ${(gpuMemU && gpuMemT) ? `<div class="hw-row"><span class="hw-label">VRAM</span><span class="hw-spark"></span><span class="hw-val">${gpuMemU.value.toFixed(0)} / ${gpuMemT.value.toFixed(0)} MB</span></div>` : ""}
+        </div>
+        <div class="hw-card" style="grid-column:1/-1">
+          <div class="hw-card-title"><i class="ti ti-circuits"></i> Memory</div>
+          ${hwRow("Usage", ramLoad, " %", 0, "ramLoad")}
+        </div>
+      </div>`;
+  } else if (running) {
+    body = `
+      <div class="hw-empty">
+        <i class="ti ti-loader-2 spin"></i>
+        <p>Connected — waiting for sensor data…</p>
+      </div>`;
+  } else {
+    const installed = installedVersions["librehardwaremonitor"];
+    body = `
+      <div class="hw-empty">
+        <i class="ti ti-temperature-off"></i>
+        <p>LibreHardwareMonitor is not running.</p>
+        <p class="hw-empty-sub">${installed
+          ? 'Start it below to see live sensor data.'
+          : 'Download it from the Apps section, then start it here.'}</p>
+        ${installed ? `<button class="btn-hw-start" id="btn-start-lhm"><i class="ti ti-player-play"></i> Start LHM</button>` : ""}
+      </div>`;
+  }
+
+  content.innerHTML = `
+    <div class="section-header">
+      <span class="section-title">Hardware Monitor</span>
+      <div class="section-line"></div>
+      ${badge}
+      <button class="btn-refresh" id="btn-refresh-hw" title="Refresh"><i class="ti ti-refresh"></i></button>
+    </div>
+    ${body}
+    <div class="hw-note">Powered by <strong>LibreHardwareMonitor</strong> · HTTP server on port 8085</div>
+  `;
+
+  document.getElementById("btn-refresh-hw")?.addEventListener("click", pollHardware);
+  document.getElementById("btn-start-lhm")?.addEventListener("click", async () => {
+    try {
+      await invoke("start_lhm");
+      toast("LibreHardwareMonitor starting…", "ok");
+      setTimeout(pollHardware, 2000);
+    } catch (e) {
+      toast(String(e), "error");
+    }
+  });
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
@@ -1182,6 +1568,9 @@ document.getElementById("app").innerHTML = `
       </button>
       <button type="button" class="nav-item" id="nav-startup" title="Startup">
         <i class="ti ti-player-play" aria-hidden="true"></i> <span class="nav-label">Startup</span>
+      </button>
+      <button type="button" class="nav-item" id="nav-hardware" title="Hardware">
+        <i class="ti ti-cpu-2" aria-hidden="true"></i> <span class="nav-label">Hardware</span>
       </button>
 
       <div class="nav-section-label">Categories</div>
@@ -1241,22 +1630,31 @@ document.getElementById("btn-collapse").addEventListener("click", () => {
 applySidebar();
 
 document.getElementById("nav-all").addEventListener("click", () => {
+  stopHwPolling();
   state.view = "apps"; state.cat = null; render();
 });
 document.getElementById("nav-configs").addEventListener("click", () => {
+  stopHwPolling();
   state.view = "configs"; state.cat = null; render();
 });
 document.getElementById("nav-services").addEventListener("click", () => {
+  stopHwPolling();
   state.view = "services"; state.cat = null; state.search = ""; render();
   if (!servicesLoaded) loadServices();
 });
 document.getElementById("nav-startup").addEventListener("click", () => {
+  stopHwPolling();
   state.view = "startup"; state.cat = null; state.search = ""; render();
   if (!startupLoaded) loadStartup();
+});
+document.getElementById("nav-hardware").addEventListener("click", () => {
+  state.view = "hardware"; state.cat = null; state.search = ""; render();
+  startHwPolling();
 });
 
 document.querySelectorAll("[data-cat]").forEach(el => {
   el.addEventListener("click", () => {
+    stopHwPolling();
     const cat = el.dataset.cat;
     state.cat  = state.cat === cat ? null : cat;
     state.view = "apps";
@@ -1267,6 +1665,90 @@ document.querySelectorAll("[data-cat]").forEach(el => {
 document.getElementById("search").addEventListener("input", e => {
   state.search = e.target.value.toLowerCase().trim();
   render();
+});
+
+// ── ADD APP DIALOG ────────────────────────────────────────────────────────────
+
+document.getElementById("btn-add").addEventListener("click", () => {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.innerHTML = `
+    <div class="modal add-app-modal" role="dialog" aria-modal="true" aria-labelledby="add-app-title">
+      <div class="modal-title" id="add-app-title"><i class="ti ti-puzzle"></i> Add Custom App</div>
+      <form id="add-app-form" class="add-app-form">
+        <div class="add-app-field">
+          <label>Name</label>
+          <input type="text" name="name" required placeholder="e.g. Flow Launcher" />
+        </div>
+        <div class="add-app-field">
+          <label>Description</label>
+          <input type="text" name="desc" required placeholder="Short description" />
+        </div>
+        <div class="add-app-field">
+          <label>Category</label>
+          <select name="cat">
+            ${Object.entries(CATS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join("")}
+          </select>
+        </div>
+        <div class="add-app-field">
+          <label>Download URL</label>
+          <input type="url" name="dl" required placeholder="https://…" />
+        </div>
+        <div class="add-app-field">
+          <label>GitHub repo <span class="add-app-opt">(optional)</span></label>
+          <input type="text" name="gh" placeholder="owner/repo" />
+        </div>
+        <div class="add-app-field">
+          <label>Source URL <span class="add-app-opt">(optional)</span></label>
+          <input type="url" name="src" placeholder="https://…" />
+        </div>
+      </form>
+      <div class="modal-actions">
+        <button type="button" class="modal-btn cancel" id="add-app-cancel">Cancel</button>
+        <button type="submit" form="add-app-form" class="modal-btn modal-btn-ok">Add App</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const form      = overlay.querySelector("#add-app-form");
+  const cancelBtn = overlay.querySelector("#add-app-cancel");
+  const close     = () => { overlay.remove(); };
+
+  cancelBtn.onclick = close;
+  overlay.onclick   = e => { if (e.target === overlay) close(); };
+  document.addEventListener("keydown", function esc(e) {
+    if (e.key === "Escape") { close(); document.removeEventListener("keydown", esc, true); }
+  }, true);
+
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(form));
+    if (!d.src) d.src = d.gh ? `https://github.com/${d.gh}` : d.dl;
+    const cat = CATS[d.cat] || CATS.wm;
+    const app = {
+      id:        `custom-${Date.now()}`,
+      name:      d.name.trim(),
+      cat:       d.cat,
+      icon:      cat.icon,
+      iconClass: `icon-${d.cat}`,
+      tagClass:  `tag-${d.cat}`,
+      tagLabel:  cat.label,
+      desc:      d.desc.trim(),
+      dl:        d.dl,
+      src:       d.src,
+      gh:        d.gh.trim() || null,
+    };
+    APPS.push(app);
+    const stored = JSON.parse(localStorage.getItem("hearth.customApps") || "[]");
+    stored.push(app);
+    localStorage.setItem("hearth.customApps", JSON.stringify(stored));
+    close();
+    state.view = "apps"; state.cat = null;
+    render();
+    toast(`${app.name} added.`, "ok");
+  });
+
+  overlay.querySelector("[name='name']")?.focus();
 });
 
 // ── AUTO-INSTALL ─────────────────────────────────────────────────────────────
@@ -1285,6 +1767,27 @@ async function handleFontInstall(btn, appId, url) {
     if (current === "done" || current === "cancelled" || current === "error") return;
     // Pre-flight failure: no event was emitted yet
     console.error("[Hearth] font install:", errStr);
+    installState[appId] = { state: "error" };
+    updateInstallBtn(document.querySelector(`[data-install-id="${appId}"]`), appId);
+    setTimeout(() => {
+      delete installState[appId];
+      updateInstallBtn(document.querySelector(`[data-install-id="${appId}"]`), appId);
+    }, 3000);
+  }
+}
+
+async function handleExtractInstall(btn, appId, gh, assetMatch) {
+  try {
+    installState[appId] = { state: "fetching" };
+    updateInstallBtn(btn, appId);
+    const url = await invoke("get_github_asset_url", { repo: gh, assetMatch: assetMatch || null });
+    await invoke("download_and_extract_lhm", { appId, url });
+  } catch (e) {
+    const errStr = String(e);
+    if (errStr.includes("cancelled")) return;
+    const current = installState[appId]?.state;
+    if (current === "done" || current === "cancelled" || current === "error") return;
+    console.error("[Hearth] extract install:", errStr);
     installState[appId] = { state: "error" };
     updateInstallBtn(document.querySelector(`[data-install-id="${appId}"]`), appId);
     setTimeout(() => {
@@ -1358,6 +1861,19 @@ async function refreshAppVersion(appId) {
 
 // ── VERSION DETECTION ─────────────────────────────────────────────────────────
 
+function updateNavBadge() {
+  const updateCount = APPS.filter(a => versionGt(latestVersions[a.id], installedVersions[a.id])).length;
+  const badge = document.querySelector("#nav-all .nav-badge");
+  if (!badge) return;
+  if (updateCount > 0) {
+    badge.textContent = `${updateCount} ↑`;
+    badge.classList.add("badge-update");
+  } else {
+    badge.textContent = APPS.length;
+    badge.classList.remove("badge-update");
+  }
+}
+
 async function loadVersionInfo() {
   // Check installed status (local registry/filesystem — all concurrent, fast)
   await Promise.all(APPS.map(async app => {
@@ -1368,6 +1884,7 @@ async function loadVersionInfo() {
     }
   }));
   if (state.view === "apps") renderContent();
+  updateNavBadge();
 
   // Fetch latest GitHub versions concurrently; re-render as each arrives
   APPS.filter(a => a.gh).forEach(async app => {
@@ -1377,6 +1894,7 @@ async function loadVersionInfo() {
       latestVersions[app.id] = null;
     }
     if (state.view === "apps") renderContent();
+    updateNavBadge();
   });
 }
 
@@ -1450,18 +1968,18 @@ function bindStartupToggles(content) {
 // Lightweight in-app confirmation (Tauri blocks native window.confirm).
 // Accessible: dialog semantics, focus moves in and is restored, Escape cancels,
 // Tab is trapped between the two buttons.
-function confirmDialog(title, message) {
+function confirmDialog(title, message, { confirmLabel = "Confirm", confirmClass = "danger", icon = "ti-alert-triangle" } = {}) {
   return new Promise(resolve => {
     const prevFocus = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "modal-overlay";
     overlay.innerHTML = `
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-t" aria-describedby="modal-m">
-        <div class="modal-title" id="modal-t"><i class="ti ti-alert-triangle" aria-hidden="true"></i> ${escapeHtml(title)}</div>
+        <div class="modal-title" id="modal-t"><i class="ti ${escapeHtml(icon)}" aria-hidden="true"></i> ${escapeHtml(title)}</div>
         <div class="modal-msg" id="modal-m">${escapeHtml(message)}</div>
         <div class="modal-actions">
           <button class="modal-btn cancel">Cancel</button>
-          <button class="modal-btn danger">Disable</button>
+          <button class="modal-btn ${escapeHtml(confirmClass)}">${escapeHtml(confirmLabel)}</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -1594,8 +2112,9 @@ async function setServiceMode(name, mode) {
   // Guard against disabling a critical/system service.
   if (mode === "disabled" && svc && isSystemService(svc)) {
     const ok = await confirmDialog(
-      "Disable system service?",
-      `“${svc.DisplayName || name}” is a core Windows/system service. Disabling it stops it now (along with any services that depend on it) and prevents it starting at boot, which can make Windows unstable. Disable it anyway?`
+      “Disable system service?”,
+      `”${svc.DisplayName || name}” is a core Windows/system service. Disabling it stops it now (along with any services that depend on it) and prevents it starting at boot, which can make Windows unstable. Disable it anyway?`,
+      { confirmLabel: “Disable” }
     );
     if (!ok) return;
   }
