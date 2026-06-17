@@ -11,7 +11,9 @@ export default defineConfig({
   },
   envPrefix: ["VITE_", "TAURI_"],
   build: {
-    target: ["es2021", "chrome105", "safari13"],
+    // Tauri ships an evergreen WebView2 (Chromium) on Windows, so there's no
+    // reason to downlevel — esnext avoids esbuild's destructuring transform bug.
+    target: "esnext",
     minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
     sourcemap: !!process.env.TAURI_DEBUG,
   },

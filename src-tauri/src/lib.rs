@@ -700,8 +700,30 @@ async fn set_service_mode(name: String, mode: String) -> Result<(), String> {
         ),
         other => return Err(format!("unknown service mode: {other}")),
     };
-    tokio::task::spawn_blocking(move || run_ps(&script))
-        .await.map_err(|e| e.to_string())?.map(|_| ())
+    let result = tokio::task::spawn_blocking(move || run_ps(&script))
+        .await.map_err(|e| e.to_string())?;
+    result.map(|_| ()).map_err(|e| friendly_service_error(&e))
+}
+
+/// Turn a raw PowerShell/SCM service error into one clear sentence.
+fn friendly_service_error(raw: &str) -> String {
+    let low = raw.to_lowercase();
+    if low.contains("access is denied") || low.contains("permissiondenied") {
+        "Access denied. This service is protected by Windows and can't be reconfigured — \
+         even as administrator. (Some system and managed services refuse changes by design.)"
+            .to_string()
+    } else if low.contains("cannot find any service") || low.contains("was not found") {
+        "That service no longer exists — try refreshing.".to_string()
+    } else if low.contains("dependent services") || low.contains("depend on") {
+        "Can't change this service: other running services depend on it.".to_string()
+    } else if low.contains("marked for deletion") {
+        "This service is being removed by Windows; try again shortly.".to_string()
+    } else {
+        // Strip PowerShell's "At line:.. char:.." trailer and the leading "Cmd :".
+        let head = raw.split("At line:").next().unwrap_or(raw).trim();
+        let head = head.splitn(2, " : ").nth(1).unwrap_or(head).trim();
+        head.to_string()
+    }
 }
 
 const STARTUP_LIST_BODY: &str = r#"
