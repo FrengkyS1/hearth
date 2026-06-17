@@ -1,4 +1,4 @@
-﻿import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
 // ── EMBEDDED CONFIGS ─────────────────────────────────────────────────────────
@@ -2112,9 +2112,9 @@ async function setServiceMode(name, mode) {
   // Guard against disabling a critical/system service.
   if (mode === "disabled" && svc && isSystemService(svc)) {
     const ok = await confirmDialog(
-      “Disable system service?”,
-      `”${svc.DisplayName || name}” is a core Windows/system service. Disabling it stops it now (along with any services that depend on it) and prevents it starting at boot, which can make Windows unstable. Disable it anyway?`,
-      { confirmLabel: “Disable” }
+      "Disable system service?",
+      `"${svc.DisplayName || name}" is a core Windows/system service. Disabling it stops it now (along with any services that depend on it) and prevents it starting at boot, which can make Windows unstable. Disable it anyway?`,
+      { confirmLabel: "Disable" }
     );
     if (!ok) return;
   }
