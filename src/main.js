@@ -1409,7 +1409,6 @@ async function pollHardware() {
       hwHistoryPush("cpuLoad",  hwData.find(s => s.type === "Load"        && /cpu total/i.test(s.name)));
       hwHistoryPush("gpuTemp",  hwData.find(s => s.type === "Temperature" && /gpu core|gpu chip|gpu diode/i.test(s.name)));
       hwHistoryPush("gpuLoad",  hwData.find(s => s.type === "Load"        && /gpu core/i.test(s.name)));
-      hwHistoryPush("ramLoad",  hwData.find(s => s.type === "Load"        && /memory/i.test(s.name)));
     }
   } catch { lhmRunning = false; }
   if (state.view === "hardware") renderContent();
@@ -1448,9 +1447,6 @@ function renderHardware(content) {
     const gpuTemp  = hwFind("Temperature", /gpu core|gpu chip|gpu diode/i);
     const cpuLoad  = hwFind("Load",        /cpu total/i);
     const gpuLoad  = hwFind("Load",        /gpu core/i);
-    const ramLoad  = hwFind("Load",        /memory/i);
-    const ramUsed  = hwFind("Data",        /used memory/i);
-    const ramAvail = hwFind("Data",        /available memory/i);
     const cpuPower = hwFind("Power",       /package/i);
     const gpuMemU  = hwFind("SmallData",   /gpu memory used/i);
     const gpuMemT  = hwFind("SmallData",   /gpu memory total/i);
@@ -1468,11 +1464,6 @@ function renderHardware(content) {
           ${hwRow("Temperature", gpuTemp, " °C", 0, "gpuTemp")}
           ${hwRow("Load",        gpuLoad, " %",  0, "gpuLoad")}
           ${(gpuMemU && gpuMemT) ? `<div class="hw-row"><span class="hw-label">VRAM</span><span class="hw-spark"></span><span class="hw-val">${gpuMemU.value.toFixed(0)} / ${gpuMemT.value.toFixed(0)} MB</span></div>` : ""}
-        </div>
-        <div class="hw-card" style="grid-column:1/-1">
-          <div class="hw-card-title"><i class="ti ti-circuits"></i> Memory</div>
-          ${hwRow("Usage", ramLoad, " %", 0, "ramLoad")}
-          ${(ramUsed && ramAvail) ? `<div class="hw-row"><span class="hw-label">Used</span><span class="hw-spark"></span><span class="hw-val">${ramUsed.value.toFixed(1)} / ${(ramUsed.value + ramAvail.value).toFixed(1)} GB</span></div>` : ""}
         </div>
       </div>`;
   } else if (running) {
