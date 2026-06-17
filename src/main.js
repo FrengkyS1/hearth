@@ -723,7 +723,7 @@ const CONFIGS = [
   },
 ];
 
-const VIEWS = ["apps", "configs", "notes"];
+const VIEWS = ["apps", "configs"];
 const CATS = {
   wm:      { label: "Window Mgmt",  icon: "ti-layout-board" },
   bar:     { label: "Status Bar",   icon: "ti-layout-navbar" },
@@ -741,6 +741,7 @@ let state = {
   search: "",
   elevated: false,    // running with admin rights?
   hideSystem: true,   // hide critical Windows services in the Services view
+  sidebarCollapsed: localStorage.getItem("hearth.sidebarCollapsed") === "1",
 };
 
 const installState      = {}; // appId -> { state, pct?, step?, total? }
@@ -899,17 +900,15 @@ function getFiltered() {
 function renderSidebar() {
   const navAll     = document.getElementById("nav-all");
   const navConfigs = document.getElementById("nav-configs");
-  const navNotes   = document.getElementById("nav-notes");
   const navServices = document.getElementById("nav-services");
   const navStartup  = document.getElementById("nav-startup");
   const catNavs    = document.querySelectorAll("[data-cat]");
 
-  [navAll, navConfigs, navNotes, navServices, navStartup].forEach(n => n?.classList.remove("active"));
+  [navAll, navConfigs, navServices, navStartup].forEach(n => n?.classList.remove("active"));
   catNavs.forEach(n => n.classList.remove("active"));
 
   if (state.view === "apps" && !state.cat) navAll?.classList.add("active");
   if (state.view === "configs")  navConfigs?.classList.add("active");
-  if (state.view === "notes")    navNotes?.classList.add("active");
   if (state.view === "services") navServices?.classList.add("active");
   if (state.view === "startup")  navStartup?.classList.add("active");
   if (state.cat) {
@@ -925,7 +924,6 @@ function renderTopbar() {
   const labels = {
     apps:     { icon: "ti-apps",         label: "Apps",     sub: "All tools" },
     configs:  { icon: "ti-file-code",    label: "Configs",  sub: "Dotfiles & config links" },
-    notes:    { icon: "ti-notes",        label: "Notes",    sub: "Tips and tweaks" },
     services: { icon: "ti-settings-cog", label: "Services", sub: "Enable or disable Windows services" },
     startup:  { icon: "ti-player-play",  label: "Startup",  sub: "Toggle startup apps on or off" },
   };
@@ -966,16 +964,6 @@ function renderContent() {
         }).catch(() => {});
       });
     });
-    return;
-  }
-
-  if (state.view === "notes") {
-    content.innerHTML = emptyView(
-      "ti-notes",
-      "Notes",
-      "Store tips, reminders, or tweaks for each tool.",
-      "Add Note"
-    );
     return;
   }
 
@@ -1154,19 +1142,6 @@ function configCard(cfg) {
   `;
 }
 
-function emptyView(icon, title, text, btnLabel) {
-  return `
-    <div class="empty-view">
-      <i class="ti ${icon}"></i>
-      <h3>${title}</h3>
-      <p>${text}</p>
-      <button class="empty-btn">
-        <i class="ti ti-plus"></i> ${btnLabel}
-      </button>
-    </div>
-  `;
-}
-
 function render() {
   renderSidebar();
   renderTopbar();
@@ -1177,7 +1152,10 @@ function render() {
 
 document.getElementById("app").innerHTML = `
   <div class="titlebar">
-    <div class="titlebar-logo"><i class="ti ti-layout-grid"></i></div>
+    <button class="titlebar-btn tb-collapse" id="btn-collapse" title="Collapse sidebar" aria-label="Toggle sidebar">
+      <i class="ti ti-layout-sidebar-left-collapse"></i>
+    </button>
+    <div class="titlebar-logo"><i class="ti ti-flame"></i></div>
     <span class="titlebar-name">Hearth</span>
     <div class="titlebar-controls">
       <button class="titlebar-btn tb-min"   id="btn-min"   title="Minimize"><i class="ti ti-minus"></i></button>
@@ -1189,38 +1167,35 @@ document.getElementById("app").innerHTML = `
   <div class="layout">
     <aside class="sidebar">
       <div class="nav-section-label">Menu</div>
-      <button type="button" class="nav-item active" id="nav-all">
-        <i class="ti ti-apps" aria-hidden="true"></i> Apps
+      <button type="button" class="nav-item active" id="nav-all" title="Apps">
+        <i class="ti ti-apps" aria-hidden="true"></i> <span class="nav-label">Apps</span>
         <span class="nav-badge">${APPS.length}</span>
       </button>
-      <button type="button" class="nav-item" id="nav-configs">
-        <i class="ti ti-file-code" aria-hidden="true"></i> Configs
+      <button type="button" class="nav-item" id="nav-configs" title="Configs">
+        <i class="ti ti-file-code" aria-hidden="true"></i> <span class="nav-label">Configs</span>
         <span class="nav-badge">${CONFIGS.length}</span>
-      </button>
-      <button type="button" class="nav-item" id="nav-notes">
-        <i class="ti ti-notes" aria-hidden="true"></i> Notes
       </button>
 
       <div class="nav-section-label">System</div>
-      <button type="button" class="nav-item" id="nav-services">
-        <i class="ti ti-settings-cog" aria-hidden="true"></i> Services
+      <button type="button" class="nav-item" id="nav-services" title="Services">
+        <i class="ti ti-settings-cog" aria-hidden="true"></i> <span class="nav-label">Services</span>
       </button>
-      <button type="button" class="nav-item" id="nav-startup">
-        <i class="ti ti-player-play" aria-hidden="true"></i> Startup
+      <button type="button" class="nav-item" id="nav-startup" title="Startup">
+        <i class="ti ti-player-play" aria-hidden="true"></i> <span class="nav-label">Startup</span>
       </button>
 
       <div class="nav-section-label">Categories</div>
       ${Object.entries(CATS).map(([key, val]) => `
-        <button type="button" class="nav-item" data-cat="${key}">
-          <i class="ti ${val.icon}" aria-hidden="true"></i> ${val.label}
+        <button type="button" class="nav-item" data-cat="${key}" title="${val.label}">
+          <i class="ti ${val.icon}" aria-hidden="true"></i> <span class="nav-label">${val.label}</span>
           <span class="nav-badge">${APPS.filter(a => a.cat === key).length}</span>
         </button>
       `).join("")}
 
       <div class="sidebar-spacer"></div>
-      <div style="padding: 0 12px;">
-        <button class="sidebar-add" id="btn-add">
-          <i class="ti ti-plus"></i> Add App
+      <div class="sidebar-add-wrap">
+        <button class="sidebar-add" id="btn-add" title="Add App">
+          <i class="ti ti-plus"></i> <span class="nav-label">Add App</span>
         </button>
       </div>
     </aside>
@@ -1246,14 +1221,30 @@ document.getElementById("btn-close").addEventListener("click", () => invoke("win
 document.getElementById("btn-min").addEventListener("click",   () => invoke("window_minimize").catch(() => {}));
 document.getElementById("btn-max").addEventListener("click",   () => invoke("window_maximize").catch(() => {}));
 
+// Sidebar collapse — narrows the sidebar to an icon-only rail. Choice persists.
+function applySidebar() {
+  const layout = document.querySelector(".layout");
+  layout?.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
+  const btn = document.getElementById("btn-collapse");
+  if (btn) {
+    const i = btn.querySelector("i");
+    if (i) i.className = `ti ti-layout-sidebar-left-${state.sidebarCollapsed ? "expand" : "collapse"}`;
+    btn.title = state.sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar";
+    btn.setAttribute("aria-expanded", String(!state.sidebarCollapsed));
+  }
+}
+document.getElementById("btn-collapse").addEventListener("click", () => {
+  state.sidebarCollapsed = !state.sidebarCollapsed;
+  localStorage.setItem("hearth.sidebarCollapsed", state.sidebarCollapsed ? "1" : "0");
+  applySidebar();
+});
+applySidebar();
+
 document.getElementById("nav-all").addEventListener("click", () => {
   state.view = "apps"; state.cat = null; render();
 });
 document.getElementById("nav-configs").addEventListener("click", () => {
   state.view = "configs"; state.cat = null; render();
-});
-document.getElementById("nav-notes").addEventListener("click", () => {
-  state.view = "notes"; state.cat = null; render();
 });
 document.getElementById("nav-services").addEventListener("click", () => {
   state.view = "services"; state.cat = null; state.search = ""; render();

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-labelledby="t d">
+  <title id="t">Hearth</title>
+  <desc id="d">A glowing ember flame on a deep teal-navy field — the pilot light of the Hearth toolkit.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#14304A"/>
+      <stop offset="1" stop-color="#0B1E2D"/>
+    </linearGradient>
+    <linearGradient id="ember" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#FFE6C2"/>
+      <stop offset="0.32" stop-color="#FFB877"/>
+      <stop offset="0.62" stop-color="#FF9E5E"/>
+      <stop offset="1"    stop-color="#D2641F"/>
+    </linearGradient>
+    <linearGradient id="core" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF6E6"/>
+      <stop offset="1" stop-color="#FFD8A4"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.56" r="0.5">
+      <stop offset="0"   stop-color="#FF9E5E" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#FF9E5E" stop-opacity="0.14"/>
+      <stop offset="1"   stop-color="#FF9E5E" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- App tile -->
+  <rect x="0" y="0" width="1024" height="1024" rx="232" fill="url(#bg)"/>
+  <rect x="6" y="6" width="1012" height="1012" rx="226" fill="none" stroke="#67C090" stroke-opacity="0.10" stroke-width="2"/>
+
+  <!-- Hearth glow -->
+  <circle cx="512" cy="572" r="340" fill="url(#glow)"/>
+
+  <!-- Flame body -->
+  <path fill="url(#ember)" d="M512 250
+    C 600 430 660 510 660 600
+    C 660 682 594 748 512 748
+    C 430 748 364 682 364 600
+    C 364 510 424 430 512 250 Z"/>
+
+  <!-- Bright core -->
+  <path fill="url(#core)" d="M512 430
+    C 556 510 588 552 588 602
+    C 588 654 554 696 512 696
+    C 470 696 436 654 436 602
+    C 436 552 468 510 512 430 Z"/>
+</svg>

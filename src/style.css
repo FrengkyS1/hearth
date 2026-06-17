@@ -70,10 +70,16 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  padding: 0 0 0 14px;
+  padding: 0 0 0 6px;
   -webkit-app-region: drag;
   flex-shrink: 0;
   gap: 10px;
+}
+/* Sidebar collapse toggle — lives at the far left of the titlebar. */
+.tb-collapse {
+  width: 38px;
+  font-size: 16px;
+  border-radius: var(--radius-sm);
 }
 /* The pilot light: a banked ember that quietly glows — Hearth's signature. */
 .titlebar-logo {
@@ -201,6 +207,24 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
   font-family: inherit;
 }
 .sidebar-add:hover { background: rgba(103,192,144,0.2); color: var(--c1); }
+
+.sidebar-add-wrap { padding: 0 12px; }
+
+/* ── COLLAPSED SIDEBAR ───────────────────── */
+/* Sidebar narrows to an icon-only rail. Width animates; labels/badges drop out. */
+.sidebar { transition: width 0.18s ease; }
+.sidebar-collapsed .sidebar { width: 56px; }
+.sidebar-collapsed .nav-label,
+.sidebar-collapsed .nav-badge,
+.sidebar-collapsed .nav-section-label { display: none; }
+.sidebar-collapsed .nav-item {
+  justify-content: center;
+  gap: 0;
+  padding: 9px 0;
+}
+.sidebar-collapsed .nav-item i { width: auto; }
+.sidebar-collapsed .sidebar-add-wrap { padding: 0 8px; }
+.sidebar-collapsed .sidebar-add { margin: 0; padding: 9px 0; }
 
 /* ── MAIN ────────────────────────────────── */
 .main {
@@ -433,38 +457,6 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
   justify-content: center;
 }
 .config-row:hover { color: var(--c2); border-color: rgba(103,192,144,0.3); }
-
-/* ── EMPTY VIEWS ─────────────────────────── */
-.empty-view {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 70px 30px;
-  text-align: center;
-  color: var(--muted);
-  gap: 10px;
-}
-.empty-view i { font-size: 38px; color: var(--faint); }
-.empty-view h3 { font-size: 14px; font-weight: 600; color: var(--text); }
-.empty-view p { font-size: 12px; line-height: 1.6; }
-.empty-btn {
-  margin-top: 8px;
-  background: var(--accent-lo);
-  border: 1px solid rgba(103,192,144,0.2);
-  color: var(--c2);
-  font-size: 12px;
-  font-weight: 500;
-  padding: 8px 18px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: inherit;
-  transition: background 0.15s;
-}
-.empty-btn:hover { background: rgba(103,192,144,0.2); }
 
 /* ── SPIN ANIMATION ──────────────────────── */
 @keyframes spin { to { transform: rotate(360deg); } }
