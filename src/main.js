@@ -807,19 +807,6 @@ try {
   APPS.push(..._custom);
 } catch {}
 
-const PS_PROFILE = String.raw`# Default folder for VSCode — opens this when 'code' is run with no arguments
-$env:CODE_DEFAULT_PATH = "C:\Users\ASUS\Documents\Code"
-
-function code {
-    if ($args.Count -eq 0) {
-        & "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe" $env:CODE_DEFAULT_PATH
-    } else {
-        & "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe" @args
-    }
-}
-
-fastfetch
-`;
 
 const FASTFETCH_CONFIG = `{
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
@@ -895,13 +882,6 @@ const CONFIGS = [
     name: "YASB + HW Monitor",
     path: "~\\.config\\yasb\\config.yaml",
     content: YASB_CONFIG_HW,
-  },
-  {
-    id: "ps-profile",
-    appId: "powershell",
-    name: "PowerShell Profile",
-    path: "~\\Documents\\PowerShell\\Microsoft.PowerShell_profile.ps1",
-    content: PS_PROFILE,
   },
   {
     id: "fastfetch-config",
