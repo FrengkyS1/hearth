@@ -1553,15 +1553,7 @@ document.getElementById("app").innerHTML = `
         <i class="ti ti-cpu-2" aria-hidden="true"></i> <span class="nav-label">Hardware</span>
       </button>
 
-      <div class="nav-section-label">Categories</div>
-      ${Object.entries(CATS).map(([key, val]) => `
-        <button type="button" class="nav-item" data-cat="${key}" title="${val.label}">
-          <i class="ti ${val.icon}" aria-hidden="true"></i> <span class="nav-label">${val.label}</span>
-          <span class="nav-badge">${APPS.filter(a => a.cat === key).length}</span>
-        </button>
-      `).join("")}
-
-      <div class="sidebar-spacer"></div>
+<div class="sidebar-spacer"></div>
       <div class="sidebar-add-wrap">
         <button class="sidebar-add" id="btn-add" title="Add App">
           <i class="ti ti-plus"></i> <span class="nav-label">Add App</span>
