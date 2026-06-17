@@ -1449,6 +1449,8 @@ function renderHardware(content) {
     const cpuLoad  = hwFind("Load",        /cpu total/i);
     const gpuLoad  = hwFind("Load",        /gpu core/i);
     const ramLoad  = hwFind("Load",        /memory/i);
+    const ramUsed  = hwFind("Data",        /used memory/i);
+    const ramAvail = hwFind("Data",        /available memory/i);
     const cpuPower = hwFind("Power",       /package/i);
     const gpuMemU  = hwFind("SmallData",   /gpu memory used/i);
     const gpuMemT  = hwFind("SmallData",   /gpu memory total/i);
@@ -1470,6 +1472,7 @@ function renderHardware(content) {
         <div class="hw-card" style="grid-column:1/-1">
           <div class="hw-card-title"><i class="ti ti-circuits"></i> Memory</div>
           ${hwRow("Usage", ramLoad, " %", 0, "ramLoad")}
+          ${(ramUsed && ramAvail) ? `<div class="hw-row"><span class="hw-label">Used</span><span class="hw-spark"></span><span class="hw-val">${ramUsed.value.toFixed(1)} / ${(ramUsed.value + ramAvail.value).toFixed(1)} GB</span></div>` : ""}
         </div>
       </div>`;
   } else if (running) {
