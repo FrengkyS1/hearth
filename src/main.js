@@ -912,6 +912,8 @@ let state = {
   elevated: false,    // running with admin rights?
   hideSystem: true,   // hide critical Windows services in the Services view
   sidebarCollapsed: localStorage.getItem("hearth.sidebarCollapsed") === "1",
+  svcSort: "name-asc",
+  startupSort: "name-asc",
 };
 
 const installState      = {}; // appId -> { state, pct?, step?, total? }
@@ -2022,18 +2024,43 @@ function serviceRow(s) {
     </div>`;
 }
 
+function sortServices(list) {
+  const s = state.svcSort;
+  return [...list].sort((a, b) => {
+    if (s === "name-asc")  return (a.DisplayName || a.Name || "").localeCompare(b.DisplayName || b.Name || "");
+    if (s === "name-desc") return (b.DisplayName || b.Name || "").localeCompare(a.DisplayName || a.Name || "");
+    if (s === "status") {
+      const running = x => (x.State || "").toLowerCase() === "running" ? 0 : 1;
+      return running(a) - running(b) || (a.DisplayName || "").localeCompare(b.DisplayName || "");
+    }
+    if (s === "mode") {
+      const rank = { auto: 0, automatic: 0, manual: 1, disabled: 2 };
+      const r = x => rank[(x.StartMode || "").toLowerCase()] ?? 3;
+      return r(a) - r(b) || (a.DisplayName || "").localeCompare(b.DisplayName || "");
+    }
+    return 0;
+  });
+}
+
 function renderServices(content) {
   const q = state.search;
   let list = services;
   if (state.hideSystem) list = list.filter(s => !isSystemService(s));
   if (q) list = list.filter(s =>
     (s.DisplayName || "").toLowerCase().includes(q) || (s.Name || "").toLowerCase().includes(q));
+  list = sortServices(list);
 
   content.innerHTML = `
     ${elevationBanner()}
     <div class="section-header">
       <span class="section-title">Services</span>
       <div class="section-line"></div>
+      <select class="sort-select" id="svc-sort">
+        <option value="name-asc"  ${state.svcSort === "name-asc"  ? "selected" : ""}>Name A–Z</option>
+        <option value="name-desc" ${state.svcSort === "name-desc" ? "selected" : ""}>Name Z–A</option>
+        <option value="status"    ${state.svcSort === "status"    ? "selected" : ""}>Running first</option>
+        <option value="mode"      ${state.svcSort === "mode"      ? "selected" : ""}>Startup type</option>
+      </select>
       <button class="toggle-pill ${state.hideSystem ? "on" : ""}" id="btn-hide-system">
         <i class="ti ti-${state.hideSystem ? "eye-off" : "eye"}"></i>
         ${state.hideSystem ? "System services hidden" : "Showing all"}
@@ -2046,6 +2073,9 @@ function renderServices(content) {
          <div class="svc-list">${list.map(serviceRow).join("") || emptyRow("No services match.")}</div>`}
   `;
 
+  document.getElementById("svc-sort")?.addEventListener("change", e => {
+    state.svcSort = e.target.value; renderContent();
+  });
   document.getElementById("btn-hide-system")?.addEventListener("click", () => {
     state.hideSystem = !state.hideSystem; renderContent();
   });
@@ -2122,17 +2152,35 @@ function startupRow(i) {
     </div>`;
 }
 
+function sortStartup(list) {
+  const s = state.startupSort;
+  return [...list].sort((a, b) => {
+    if (s === "name-asc")  return (a.name || "").localeCompare(b.name || "");
+    if (s === "name-desc") return (b.name || "").localeCompare(a.name || "");
+    if (s === "enabled")   return (a.enabled === b.enabled ? (a.name || "").localeCompare(b.name || "") : a.enabled ? -1 : 1);
+    if (s === "disabled")  return (a.enabled === b.enabled ? (a.name || "").localeCompare(b.name || "") : a.enabled ? 1 : -1);
+    return 0;
+  });
+}
+
 function renderStartup(content) {
   const q = state.search;
   let list = startupItems;
   if (q) list = list.filter(i =>
     (i.name || "").toLowerCase().includes(q) || (i.command || "").toLowerCase().includes(q));
+  list = sortStartup(list);
 
   content.innerHTML = `
     ${elevationBanner()}
     <div class="section-header">
       <span class="section-title">Startup Apps</span>
       <div class="section-line"></div>
+      <select class="sort-select" id="startup-sort">
+        <option value="name-asc"  ${state.startupSort === "name-asc"  ? "selected" : ""}>Name A–Z</option>
+        <option value="name-desc" ${state.startupSort === "name-desc" ? "selected" : ""}>Name Z–A</option>
+        <option value="enabled"   ${state.startupSort === "enabled"   ? "selected" : ""}>Enabled first</option>
+        <option value="disabled"  ${state.startupSort === "disabled"  ? "selected" : ""}>Disabled first</option>
+      </select>
       <button class="btn-refresh" id="btn-refresh-startup" title="Refresh"><i class="ti ti-refresh"></i></button>
     </div>
     ${!startupLoaded
@@ -2140,6 +2188,9 @@ function renderStartup(content) {
       : `<div class="svc-list">${list.map(startupRow).join("") || emptyRow("No startup apps found.")}</div>`}
   `;
 
+  document.getElementById("startup-sort")?.addEventListener("change", e => {
+    state.startupSort = e.target.value; renderContent();
+  });
   document.getElementById("btn-refresh-startup")?.addEventListener("click", () => { startupLoaded = false; loadStartup(); });
   bindElevateBtn();
   bindStartupToggles(content);

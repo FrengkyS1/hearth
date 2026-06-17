@@ -687,6 +687,15 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
 .toggle-pill.on { background: var(--accent-lo); color: var(--c1); border-color: var(--border-hi); }
 .toggle-pill:hover { color: var(--c1); }
 
+.sort-select {
+  background: var(--surface2); color: var(--muted);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 4px 8px; font-size: 11px; font-weight: 600; font-family: inherit;
+  cursor: pointer; outline: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+.sort-select:hover, .sort-select:focus { border-color: var(--border-hi); color: var(--c1); }
+
 .btn-refresh {
   background: var(--surface2); color: var(--muted);
   border: 1px solid var(--border); border-radius: var(--radius-sm);
