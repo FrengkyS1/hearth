@@ -706,13 +706,13 @@ async fn set_service_mode(name: String, mode: String) -> Result<(), String> {
     let script = match mode.as_str() {
         "auto" => format!(
             "Set-Service -Name '{safe}' -StartupType Automatic -ErrorAction Stop; \
-             Start-Service -Name '{safe}' -ErrorAction SilentlyContinue"
+             try {{ Start-Service -Name '{safe}' -ErrorAction Stop }} catch {{}}"
         ),
         "manual" => format!(
             "Set-Service -Name '{safe}' -StartupType Manual -ErrorAction Stop"
         ),
         "disabled" => format!(
-            "Stop-Service -Name '{safe}' -Force -ErrorAction SilentlyContinue; \
+            "try {{ Stop-Service -Name '{safe}' -Force -ErrorAction Stop }} catch {{}}; \
              Set-Service -Name '{safe}' -StartupType Disabled -ErrorAction Stop"
         ),
         other => return Err(format!("unknown service mode: {other}")),
