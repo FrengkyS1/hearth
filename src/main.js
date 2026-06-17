@@ -1959,13 +1959,13 @@ function confirmDialog(title, message, { confirmLabel = "Confirm", confirmClass 
         <div class="modal-msg" id="modal-m">${escapeHtml(message)}</div>
         <div class="modal-actions">
           <button class="modal-btn cancel">Cancel</button>
-          <button class="modal-btn ${escapeHtml(confirmClass)}">${escapeHtml(confirmLabel)}</button>
+          <button class="modal-btn ${escapeHtml(confirmClass)}" data-confirm>${escapeHtml(confirmLabel)}</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
 
     const cancelBtn = overlay.querySelector(".cancel");
-    const dangerBtn = overlay.querySelector(".danger");
+    const dangerBtn = overlay.querySelector("[data-confirm]");
     const done = v => {
       document.removeEventListener("keydown", onKey, true);
       overlay.remove();
