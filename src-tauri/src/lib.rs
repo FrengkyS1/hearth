@@ -1027,13 +1027,16 @@ async fn open_in_explorer(path: String) -> Result<(), String> {
     let home = std::env::var("USERPROFILE").unwrap_or_default();
     let expanded = path.replace('~', &home);
     let p = std::path::Path::new(&expanded);
-    let arg = if p.exists() {
-        format!("/select,{}", expanded)
+    let folder = if p.is_file() {
+        p.parent().and_then(|d| d.to_str()).unwrap_or("").to_string()
+    } else if p.exists() {
+        expanded.clone()
     } else {
         p.parent().and_then(|d| d.to_str()).unwrap_or("").to_string()
     };
-    std::process::Command::new("explorer.exe")
-        .arg(&arg)
+    // Use cmd start so Windows opens the folder in the user's default file manager
+    std::process::Command::new("cmd")
+        .args(["/c", "start", "", &folder])
         .spawn()
         .map_err(|e| e.to_string())?;
     Ok(())
