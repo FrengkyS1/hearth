@@ -866,22 +866,31 @@ fn find_lhm_exe() -> Option<std::path::PathBuf> {
     ].iter().map(std::path::PathBuf::from).find(|p| p.exists())
 }
 
-fn collect_sensors(node: &Value, out: &mut Vec<Value>) {
-    if let (Some(st), Some(text), Some(val)) = (
-        node.get("Type").and_then(|v| v.as_str()),
+// LHM JSON tree: group nodes carry the Type ("Load", "Data", …) and their
+// leaf children may or may not repeat it.  We propagate the parent type down
+// so leaves without their own Type field are still typed correctly.
+fn collect_sensors<'a>(node: &'a Value, parent_type: &'a str, out: &mut Vec<Value>) {
+    let type_str = node.get("Type")
+        .and_then(|v| v.as_str())
+        .unwrap_or(parent_type);
+
+    if let (Some(text), Some(val)) = (
         node.get("Text").and_then(|v| v.as_str()),
         node.get("Value").and_then(|v| v.as_str()),
     ) {
-        let num: f64 = val.chars()
-            .take_while(|c| c.is_ascii_digit() || *c == '.' || *c == ',')
-            .collect::<String>()
-            .replace(',', ".")
-            .parse()
-            .unwrap_or(0.0);
-        out.push(serde_json::json!({ "type": st, "name": text, "value": num, "raw": val }));
+        // Skip placeholder nodes ("-") and unnamed / type-less roots
+        if val != "-" && !val.is_empty() && !type_str.is_empty() {
+            let num: f64 = val.chars()
+                .take_while(|c| c.is_ascii_digit() || *c == '.' || *c == ',')
+                .collect::<String>()
+                .replace(',', ".")
+                .parse()
+                .unwrap_or(0.0);
+            out.push(serde_json::json!({ "type": type_str, "name": text, "value": num, "raw": val }));
+        }
     }
     if let Some(children) = node.get("Children").and_then(|v| v.as_array()) {
-        for child in children { collect_sensors(child, out); }
+        for child in children { collect_sensors(child, type_str, out); }
     }
 }
 
@@ -904,7 +913,7 @@ async fn get_hardware_data() -> Result<Value, String> {
         .send().await.map_err(|e| format!("LHM not reachable: {e}"))?
         .json().await.map_err(|e| e.to_string())?;
     let mut sensors = Vec::new();
-    collect_sensors(&data, &mut sensors);
+    collect_sensors(&data, "", &mut sensors);
     Ok(Value::Array(sensors))
 }
 
