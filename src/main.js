@@ -635,7 +635,7 @@ const YASB_HW_WIDGETS = `
       # AMD: /amdcpu/0/temperature/0  Intel: /intelcpu/0/temperature/8
       label: "{info[value]}{info[unit]}"
       label_alt: "{info[min]}/{info[max]} {info[unit]}"
-      sensor_id: "/amdcpu/0/temperature/0"
+      sensor_id: "/amdcpu/0/temperature/2"
       class_name: "cpu-temp"
       update_interval: 2000
       precision: 0
