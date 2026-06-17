@@ -2058,7 +2058,7 @@ function renderServices(content) {
       <select class="sort-select" id="svc-sort">
         <option value="name-asc"  ${state.svcSort === "name-asc"  ? "selected" : ""}>Name A–Z</option>
         <option value="name-desc" ${state.svcSort === "name-desc" ? "selected" : ""}>Name Z–A</option>
-        <option value="status"    ${state.svcSort === "status"    ? "selected" : ""}>Running first</option>
+
         <option value="mode"      ${state.svcSort === "mode"      ? "selected" : ""}>Startup type</option>
       </select>
       <button class="toggle-pill ${state.hideSystem ? "on" : ""}" id="btn-hide-system">
@@ -2178,8 +2178,8 @@ function renderStartup(content) {
       <select class="sort-select" id="startup-sort">
         <option value="name-asc"  ${state.startupSort === "name-asc"  ? "selected" : ""}>Name A–Z</option>
         <option value="name-desc" ${state.startupSort === "name-desc" ? "selected" : ""}>Name Z–A</option>
-        <option value="enabled"   ${state.startupSort === "enabled"   ? "selected" : ""}>Enabled first</option>
-        <option value="disabled"  ${state.startupSort === "disabled"  ? "selected" : ""}>Disabled first</option>
+        <option value="enabled"   ${state.startupSort === "enabled"   ? "selected" : ""}>Enabled</option>
+        <option value="disabled"  ${state.startupSort === "disabled"  ? "selected" : ""}>Disabled</option>
       </select>
       <button class="btn-refresh" id="btn-refresh-startup" title="Refresh"><i class="ti ti-refresh"></i></button>
     </div>
