@@ -1165,10 +1165,27 @@ function renderContent() {
       });
     });
 
+    // Disclosure widget: keep the .collapsed class and the chevron button's
+    // aria-expanded in sync. Both the header (mouse convenience) and the chevron
+    // button (keyboard + click) route through here.
+    const toggleCard = card => {
+      const collapsed = card.classList.toggle("collapsed");
+      const chevron = card.querySelector(".config-chevron");
+      if (chevron) chevron.setAttribute("aria-expanded", String(!collapsed));
+    };
+
+    content.querySelectorAll(".config-chevron").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();                 // don't double-fire the header handler
+        toggleCard(btn.closest(".config-card"));
+      });
+    });
+
     content.querySelectorAll(".config-card-header").forEach(header => {
       header.addEventListener("click", e => {
-        if (e.target.closest("[data-copy-id]") || e.target.closest("[data-apply-id]") || e.target.closest("[data-open-path]")) return;
-        header.closest(".config-card").classList.toggle("collapsed");
+        // Ignore clicks on any action control; the chevron handles itself above.
+        if (e.target.closest("button")) return;
+        toggleCard(header.closest(".config-card"));
       });
     });
     return;
@@ -1340,24 +1357,27 @@ function configCard(cfg) {
     <div class="config-card collapsed" data-config-id="${cfg.id}">
       <div class="config-card-header">
         <div class="app-icon ${app?.iconClass || ""}" style="flex-shrink:0">
-          <i class="ti ${app?.icon || "ti-file-code"}"></i>
+          <i class="ti ${app?.icon || "ti-file-code"}" aria-hidden="true"></i>
         </div>
         <div class="config-card-meta">
           <div class="config-card-name">${escapeHtml(cfg.name)}</div>
           <div class="config-card-path">${escapeHtml(cfg.path)}</div>
         </div>
         <button class="btn-folder" data-open-path="${escapeHtml(cfg.path)}" title="Open file location">
-          <i class="ti ti-folder-open"></i>
+          <i class="ti ti-folder-open" aria-hidden="true"></i>
         </button>
         <button class="btn-apply" data-apply-id="${cfg.id}" title="Write this config to disk">
-          <i class="ti ti-device-floppy"></i> Apply
+          <i class="ti ti-device-floppy" aria-hidden="true"></i> Apply
         </button>
         <button class="btn-copy" data-copy-id="${cfg.id}">
-          <i class="ti ti-copy"></i> Copy
+          <i class="ti ti-copy" aria-hidden="true"></i> Copy
         </button>
-        <i class="ti ti-chevron-down config-chevron"></i>
+        <button class="config-chevron" type="button" aria-expanded="false"
+                aria-controls="cfgbody-${cfg.id}" aria-label="Toggle ${escapeHtml(cfg.name)} config">
+          <i class="ti ti-chevron-down" aria-hidden="true"></i>
+        </button>
       </div>
-      <div class="config-body">
+      <div class="config-body" id="cfgbody-${cfg.id}">
         <div class="config-body-inner">
           <pre class="config-code">${escapeHtml(cfg.content)}</pre>
         </div>

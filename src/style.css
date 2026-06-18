@@ -492,12 +492,26 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
 .config-card.collapsed .config-card-header { border-bottom-color: transparent; }
 
 .config-chevron {
-  font-size: 14px;
-  color: var(--faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
-  transition: transform 0.2s ease, color 0.12s;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--faint);
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.2s ease, color 0.12s, background 0.12s;
 }
-.config-card-header:hover .config-chevron { color: var(--muted); }
+.config-chevron:hover { color: var(--muted); background: var(--surface3); }
+.config-chevron:focus-visible {
+  outline: 2px solid var(--c2);
+  outline-offset: 2px;
+}
 .config-card.collapsed .config-chevron { transform: rotate(-90deg); }
 
 .config-body {
@@ -506,7 +520,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
   transition: grid-template-rows 0.2s ease;
 }
 .config-card.collapsed .config-body { grid-template-rows: 0fr; }
-.config-body-inner { overflow: hidden; }
+.config-body-inner { overflow: hidden; min-height: 0; }
 .config-card-meta { flex: 1; min-width: 0; }
 .config-card-name { font-size: 13px; font-weight: 600; color: var(--text); }
 .config-card-path {
