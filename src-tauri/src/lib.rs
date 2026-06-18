@@ -1012,11 +1012,23 @@ async fn download_and_extract_lhm(
 
 // ── config file write ──────────────────────────────────────────────────────────
 
+// Expand a leading `~` to the user's home directory. Only the leading segment is
+// replaced, so paths that legitimately contain `~` elsewhere are left intact.
+fn expand_home(path: &str) -> String {
+    let home = std::env::var("USERPROFILE").unwrap_or_default();
+    if path == "~" {
+        home
+    } else if let Some(rest) = path.strip_prefix("~\\").or_else(|| path.strip_prefix("~/")) {
+        format!("{}\\{}", home, rest)
+    } else {
+        path.to_string()
+    }
+}
+
 #[tauri::command]
 async fn write_config_file(path: String, content: String) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
-        let home = std::env::var("USERPROFILE").unwrap_or_default();
-        let expanded = path.replace('~', &home);
+        let expanded = expand_home(&path);
         let p = std::path::Path::new(&expanded);
         if p.exists() {
             let bak = format!("{}.hearth.bak", &expanded);
@@ -1033,22 +1045,16 @@ async fn write_config_file(path: String, content: String) -> Result<(), String> 
 
 #[tauri::command]
 async fn open_in_explorer(path: String) -> Result<(), String> {
-    let home = std::env::var("USERPROFILE").unwrap_or_default();
-    let expanded = path.replace('~', &home);
+    let expanded = expand_home(&path);
     let p = std::path::Path::new(&expanded);
-    let folder = if p.is_file() {
-        p.parent().and_then(|d| d.to_str()).unwrap_or("").to_string()
-    } else if p.exists() {
+    let folder = if p.is_dir() {
         expanded.clone()
     } else {
         p.parent().and_then(|d| d.to_str()).unwrap_or("").to_string()
     };
-    // Use cmd start so Windows opens the folder in the user's default file manager
-    std::process::Command::new("cmd")
-        .args(["/c", "start", "", &folder])
-        .spawn()
-        .map_err(|e| e.to_string())?;
-    Ok(())
+    // open::that uses ShellExecute, so the folder opens in the user's default
+    // file manager and the crate handles path quoting/escaping for us.
+    open::that(&folder).map_err(|e| e.to_string())
 }
 
 // ── entry point ────────────────────────────────────────────────────────────────

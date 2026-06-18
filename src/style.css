@@ -515,12 +515,12 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
 .config-card.collapsed .config-chevron { transform: rotate(-90deg); }
 
 .config-body {
-  display: grid;
-  grid-template-rows: 1fr;
-  transition: grid-template-rows 0.2s ease;
+  overflow: hidden;
+  transition: height 0.2s ease;
 }
-.config-card.collapsed .config-body { grid-template-rows: 0fr; }
-.config-body-inner { overflow: hidden; min-height: 0; }
+/* Initial collapsed state (before JS sets an inline height). */
+.config-card.collapsed .config-body { height: 0; }
+.config-body-inner { overflow: hidden; }
 .config-card-meta { flex: 1; min-width: 0; }
 .config-card-name { font-size: 13px; font-weight: 600; color: var(--text); }
 .config-card-path {

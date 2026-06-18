@@ -947,10 +947,12 @@ async function openUrl(url) {
 }
 
 function escapeHtml(str) {
-  return str
+  return String(str)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function versionGt(latest, installed) {
@@ -1165,19 +1167,10 @@ function renderContent() {
       });
     });
 
-    // Disclosure widget: keep the .collapsed class and the chevron button's
-    // aria-expanded in sync. Both the header (mouse convenience) and the chevron
-    // button (keyboard + click) route through here.
-    const toggleCard = card => {
-      const collapsed = card.classList.toggle("collapsed");
-      const chevron = card.querySelector(".config-chevron");
-      if (chevron) chevron.setAttribute("aria-expanded", String(!collapsed));
-    };
-
     content.querySelectorAll(".config-chevron").forEach(btn => {
       btn.addEventListener("click", e => {
         e.stopPropagation();                 // don't double-fire the header handler
-        toggleCard(btn.closest(".config-card"));
+        toggleConfigCard(btn.closest(".config-card"));
       });
     });
 
@@ -1185,7 +1178,7 @@ function renderContent() {
       header.addEventListener("click", e => {
         // Ignore clicks on any action control; the chevron handles itself above.
         if (e.target.closest("button")) return;
-        toggleCard(header.closest(".config-card"));
+        toggleConfigCard(header.closest(".config-card"));
       });
     });
     return;
@@ -1301,13 +1294,13 @@ function appCard(app) {
   const hasUpdate = versionGt(latest, installed);
   let vBadges = "";
   if (installed) {
-    const label = installed === "installed" ? "Installed" : `v${installed}`;
+    const label = installed === "installed" ? "Installed" : `v${escapeHtml(installed)}`;
     vBadges += `<span class="ver-badge ver-ok"><i class="ti ti-check-circle"></i> ${label}</span>`;
   }
   if (hasUpdate) {
-    vBadges += `<span class="ver-badge ver-new"><i class="ti ti-arrow-up"></i> v${latest}</span>`;
+    vBadges += `<span class="ver-badge ver-new"><i class="ti ti-arrow-up"></i> v${escapeHtml(latest)}</span>`;
   } else if (!installed && latest) {
-    vBadges += `<span class="ver-badge ver-avail">v${latest}</span>`;
+    vBadges += `<span class="ver-badge ver-avail">v${escapeHtml(latest)}</span>`;
   }
   const versionRow = vBadges ? `<div class="version-row">${vBadges}</div>` : "";
 
@@ -1317,10 +1310,10 @@ function appCard(app) {
         <div class="app-icon ${app.iconClass}">
           <i class="ti ${app.icon}"></i>
         </div>
-        <span class="app-tag ${app.tagClass}">${app.tagLabel}</span>
+        <span class="app-tag ${app.tagClass}">${escapeHtml(app.tagLabel)}</span>
       </div>
-      <div class="app-name">${app.name}</div>
-      <div class="app-desc">${app.desc}</div>
+      <div class="app-name">${escapeHtml(app.name)}</div>
+      <div class="app-desc">${escapeHtml(app.desc)}</div>
       ${versionRow}
       <div class="card-actions">
         <button class="btn-dl${isInstalledIdle(app.id) ? " is-installed" : ""}" ${dlDisabled}
@@ -1349,6 +1342,40 @@ function appCard(app) {
       </div>` : ""}
     </div>
   `;
+}
+
+// Collapse/expand a config card by animating the body's pixel height. Measuring
+// scrollHeight in JS works in every WebView engine (unlike grid-template-rows
+// fr-interpolation, which silently no-ops in some Chromium builds).
+function toggleConfigCard(card) {
+  if (!card) return;
+  const body = card.querySelector(".config-body");
+  const chevron = card.querySelector(".config-chevron");
+  const collapsed = card.classList.contains("collapsed");   // current state
+  const expanding = collapsed;                               // toggling -> expand
+
+  if (chevron) chevron.setAttribute("aria-expanded", String(expanding));
+
+  if (!body) { card.classList.toggle("collapsed"); return; }
+
+  const target = body.scrollHeight;                          // full content height
+  if (expanding) {
+    card.classList.remove("collapsed");
+    body.style.height = "0px";
+    body.getBoundingClientRect();                            // force reflow before animating
+    body.style.height = target + "px";
+    const onEnd = e => {
+      if (e.propertyName !== "height") return;
+      body.style.height = "auto";                            // let content scroll/resize after
+      body.removeEventListener("transitionend", onEnd);
+    };
+    body.addEventListener("transitionend", onEnd);
+  } else {
+    body.style.height = target + "px";                       // pin current height
+    body.getBoundingClientRect();                            // force reflow
+    card.classList.add("collapsed");
+    body.style.height = "0px";                               // animate to collapsed
+  }
 }
 
 function configCard(cfg) {
