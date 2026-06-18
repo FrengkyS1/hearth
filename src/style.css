@@ -213,18 +213,20 @@ html, body { height: 100%; background: var(--bg); color: var(--text); overflow: 
 
 /* ── COLLAPSED SIDEBAR ───────────────────── */
 /* Sidebar narrows to an icon-only rail. Grid column animates; labels/badges drop out. */
-.sidebar-collapsed .layout { grid-template-columns: 56px 1fr; }
-.sidebar-collapsed .nav-label,
-.sidebar-collapsed .nav-badge,
-.sidebar-collapsed .nav-section-label { display: none; }
-.sidebar-collapsed .nav-item {
+/* The .sidebar-collapsed class is applied to the .layout element itself, so
+   these selectors are compound (.layout.sidebar-collapsed), not descendant. */
+.layout.sidebar-collapsed { grid-template-columns: 56px 1fr; }
+.layout.sidebar-collapsed .nav-label,
+.layout.sidebar-collapsed .nav-badge,
+.layout.sidebar-collapsed .nav-section-label { display: none; }
+.layout.sidebar-collapsed .nav-item {
   justify-content: center;
   gap: 0;
   padding: 9px 0;
 }
-.sidebar-collapsed .nav-item i { width: auto; }
-.sidebar-collapsed .sidebar-add-wrap { padding: 0 8px; }
-.sidebar-collapsed .sidebar-add { margin: 0; padding: 9px 0; }
+.layout.sidebar-collapsed .nav-item i { width: auto; }
+.layout.sidebar-collapsed .sidebar-add-wrap { padding: 0 8px; }
+.layout.sidebar-collapsed .sidebar-add { margin: 0; padding: 9px 0; }
 
 /* ── MAIN ────────────────────────────────── */
 .main {
